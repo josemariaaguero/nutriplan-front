@@ -1,0 +1,98 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --np-primary: #ff6a3d;
+  --np-primary-deep: #e0512c;
+  --np-secondary: #ffb02e;
+  --np-success: #18bd73;
+  --np-success-deep: #11a866;
+  --np-bg: #fff6ec;
+  --np-surface: #ffffff;
+  --np-surface-muted: #f6ece0;
+  --np-border: #f0e8df;
+  --np-text: #2a2520;
+  --np-text-body: #4a4038;
+  --np-text-muted: #9a9087;
+  --np-text-soft: #b8aea2;
+  --np-ink: #2a2520;
+  --np-wrapper: #efe7da;
+  --np-grad-primary: linear-gradient(120deg, #ff6a3d, #ffb02e);
+  --np-grad-avatar: linear-gradient(135deg, #ffc24d, #ff6a3d);
+  --np-grad-selected: linear-gradient(140deg, #ff7a45, #ff6a3d);
+  --np-grad-health: linear-gradient(135deg, #18bd73, #11a866);
+  --np-shadow-sm: 0 2px 8px rgba(80, 60, 40, 0.08);
+  --np-shadow-md: 0 4px 16px rgba(80, 60, 40, 0.05);
+  --np-shadow-lg: 0 8px 30px rgba(80, 60, 40, 0.07);
+  --np-shadow-cta: 0 8px 20px rgba(224, 122, 77, 0.32);
+  --np-radius-md: 16px;
+  --np-radius-lg: 18px;
+  --np-radius-xl: 22px;
+  --np-radius-2xl: 26px;
+  --np-font-display: 'Nunito', system-ui, sans-serif;
+  --np-font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --np-ease: 200ms ease;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--np-font-body);
+  background: var(--np-wrapper);
+  color: var(--np-text);
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--np-primary);
+  outline-offset: 2px;
+}
+
+input:focus {
+  border-color: var(--np-primary) !important;
+  box-shadow: 0 0 0 3px rgba(255, 106, 61, 0.15);
+}
+
+.np-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.np-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.np-spin {
+  animation: np-spin 0.8s linear infinite;
+}
+
+@keyframes np-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .np-spin {
+    animation: none;
+  }
+}

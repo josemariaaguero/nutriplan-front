@@ -1,0 +1,334 @@
+.app-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--np-wrapper);
+  padding: 40px 0;
+}
+
+.phone-frame {
+  width: 402px;
+  height: 874px;
+  border-radius: 52px;
+  background: #1a1a1a;
+  padding: 12px;
+  box-shadow:
+    0 50px 100px rgba(0, 0, 0, 0.25),
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  position: relative;
+}
+
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  border-radius: 42px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--np-bg);
+  color: var(--np-text);
+  font-family: var(--np-font-body);
+}
+
+/* Notch */
+.phone-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 126px;
+  height: 34px;
+  background: #1a1a1a;
+  border-radius: 0 0 20px 20px;
+  z-index: 50;
+}
+
+/* Status bar time area */
+.phone-screen::after {
+  content: '9:41';
+  position: absolute;
+  top: 8px;
+  left: 30px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--np-text);
+  z-index: 51;
+  font-family: var(--np-font-body);
+}
+
+@media (max-width: 440px) {
+  .app-wrapper {
+    padding: 0;
+    align-items: stretch;
+  }
+  .phone-frame {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+    padding: 0;
+  }
+  .phone-screen {
+    border-radius: 0;
+  }
+  .phone-screen::before {
+    display: none;
+  }
+  .phone-screen::after {
+    display: none;
+  }
+}
+
+/* ── Desktop web shell (≥900px via React) ─────────────────────── */
+
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+  display: flex;
+  background: var(--np-bg);
+  color: var(--np-text);
+  font-family: var(--np-font-body);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 16px 24px;
+  background: var(--np-surface);
+  border-right: 1px solid var(--np-border);
+  box-shadow: var(--np-shadow-sm);
+  z-index: 20;
+}
+
+.app-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 28px;
+}
+
+.app-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--np-text-body);
+  font-family: var(--np-font-display);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--np-ease), color var(--np-ease);
+}
+
+.app-sidebar-item:hover {
+  background: var(--np-surface-muted);
+}
+
+.app-sidebar-item.is-active {
+  background: #fff4f0;
+  color: var(--np-primary-deep);
+}
+
+.app-sidebar-icon {
+  display: flex;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(255, 176, 46, 0.12), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 0% 100%, rgba(255, 106, 61, 0.08), transparent 50%),
+    var(--np-bg);
+}
+
+.app-main-inner {
+  width: 100%;
+  max-width: 840px;
+  margin: 0 auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell .np-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-shell-auth {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255, 176, 46, 0.14), transparent 55%),
+    var(--np-bg);
+  position: relative;
+}
+
+.app-shell-auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--np-surface);
+  border-radius: 26px;
+  box-shadow: var(--np-shadow-lg);
+  overflow: hidden;
+  max-height: min(900px, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell-auth-card .np-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.app-shell-boot {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--np-bg);
+}
+
+/* Web overrides for mockup-specific offsets (mobile mockup unchanged) */
+.app-shell .np-sticky-composer {
+  bottom: 0 !important;
+}
+
+.app-shell .np-hero-back {
+  top: 20px !important;
+}
+
+/* Desktop assistant chatbox */
+.np-assistant-chatbox {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 60;
+  width: min(400px, calc(100vw - 56px));
+  height: min(560px, calc(100dvh - 56px));
+  display: flex;
+  flex-direction: column;
+  background: var(--np-surface);
+  border-radius: 22px;
+  box-shadow:
+    0 16px 48px rgba(80, 60, 40, 0.18),
+    0 4px 16px rgba(80, 60, 40, 0.08);
+  border: 1px solid var(--np-border);
+  overflow: hidden;
+}
+
+.np-assistant-chatbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--np-border);
+  background: linear-gradient(120deg, #fff4f0, #fff);
+  flex-shrink: 0;
+}
+
+.np-assistant-chatbox-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--np-surface-muted);
+  color: var(--np-text-body);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--np-ease), color var(--np-ease);
+  flex-shrink: 0;
+}
+
+.np-assistant-chatbox-close:hover {
+  background: #ffe8df;
+  color: var(--np-primary-deep);
+}
+
+.np-assistant-fab {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 55;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: var(--np-grad-primary);
+  box-shadow: var(--np-shadow-cta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: opacity var(--np-ease), transform var(--np-ease);
+}
+
+.np-assistant-fab:hover {
+  opacity: 0.92;
+}
+
+/* ── Product tour (phone + web) ───────────────────────────────── */
+/* Spotlight uses SVG mask — box-shadow cutouts are clipped by overflow:hidden
+   on .phone-screen / .app-shell. */
+.np-tutorial-overlay {
+  /* Above notch (50–51), bottom nav (30), FAB (55), chatbox (60) */
+  z-index: 1200;
+}
+
+.np-tutorial-spotlight {
+  transition:
+    top 200ms ease,
+    left 200ms ease,
+    width 200ms ease,
+    height 200ms ease;
+}
+
+.np-tutorial-card {
+  transition: top 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-tutorial-spotlight,
+  .np-tutorial-card {
+    transition: none;
+  }
+}

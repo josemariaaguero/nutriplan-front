@@ -1,0 +1,38 @@
+# Render Blueprint — NutriPlan API (FastAPI)
+# Dashboard: New → Blueprint → connect this repo
+# Or: New → Web Service with Root Directory = backend (same settings)
+
+services:
+  - type: web
+    name: nutriplan-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: SPOONACULAR_API_KEY
+        sync: false
+      - key: EDAMAM_APP_ID
+        sync: false
+      - key: EDAMAM_APP_KEY
+        sync: false
+      - key: USDA_API_KEY
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: SUPERADMIN_EMAILS
+        sync: false
