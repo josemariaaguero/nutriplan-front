@@ -52,6 +52,8 @@ import AdminSuggestionsScreen from './components/AdminSuggestionsScreen';
 import LegalConsentModal from './components/LegalConsentModal';
 import LoginScreen from './components/LoginScreen';
 import RegisterScreen from './components/RegisterScreen';
+import ForgotPasswordScreen from './components/ForgotPasswordScreen';
+import ResetPasswordScreen from './components/ResetPasswordScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import {
   completeOnboarding,
@@ -63,10 +65,12 @@ import {
   fetchMe,
   fetchSportActivities,
   fetchToday,
+  forgotPassword as apiForgotPassword,
   insertTodayFromRecipe,
   login as apiLogin,
   logoutLocal,
   register as apiRegister,
+  resetPassword as apiResetPassword,
   swapTodayIngredient,
   swapTodayMeal,
   syncHealth,
@@ -145,10 +149,22 @@ function readOAuthReturn(): { screen: Screen | null; banner: string } {
   return { screen: onSalud ? 'salud' : null, banner };
 }
 
+function readResetTokenFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get('reset_token')?.trim() || null;
+  if (token) {
+    url.searchParams.delete('reset_token');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }
+  return token;
+}
+
 function App() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [pendingReg, setPendingReg] = useState<{ name: string; email: string } | null>(null);
   const [authError, setAuthError] = useState('');
 
@@ -275,6 +291,16 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const token = readResetTokenFromUrl();
+      if (token) {
+        if (!cancelled) {
+          setResetToken(token);
+          setAuthScreen('reset');
+          setUser(null);
+          setBootstrapping(false);
+        }
+        return;
+      }
       if (!hasTokens()) {
         if (!cancelled) setBootstrapping(false);
         return;
@@ -316,6 +342,33 @@ function App() {
       await enterApp(me);
     } catch (e) {
       setAuthError(e instanceof ApiError ? e.detail : 'No se pudo crear la cuenta.');
+    }
+  }
+
+  async function handleForgotPassword(email: string) {
+    setAuthError('');
+    try {
+      const res = await apiForgotPassword(email);
+      return { message: res.message, devResetUrl: res.dev_reset_url };
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.detail : 'No se pudo enviar el enlace.';
+      setAuthError(msg);
+      throw e;
+    }
+  }
+
+  async function handleResetPassword(password: string) {
+    setAuthError('');
+    if (!resetToken) {
+      setAuthError('El enlace no es válido. Solicita uno nuevo.');
+      throw new Error('missing reset token');
+    }
+    try {
+      await apiResetPassword(resetToken, password);
+      setResetToken(null);
+    } catch (e) {
+      setAuthError(e instanceof ApiError ? e.detail : 'No se pudo actualizar la contraseña.');
+      throw e;
     }
   }
 
@@ -854,6 +907,7 @@ function App() {
         <LoginScreen
           onLogin={handleLogin}
           onRegister={() => { setAuthError(''); setAuthScreen('register'); }}
+          onForgotPassword={() => { setAuthError(''); setAuthScreen('forgot'); }}
           error={authError}
         />
       )}
@@ -861,6 +915,24 @@ function App() {
         <RegisterScreen
           onContinue={handleRegister}
           onLogin={() => { setAuthError(''); setAuthScreen('login'); }}
+          error={authError}
+        />
+      )}
+      {authScreen === 'forgot' && (
+        <ForgotPasswordScreen
+          onSubmit={handleForgotPassword}
+          onBack={() => { setAuthError(''); setAuthScreen('login'); }}
+          error={authError}
+        />
+      )}
+      {authScreen === 'reset' && (
+        <ResetPasswordScreen
+          onSubmit={handleResetPassword}
+          onBack={() => {
+            setAuthError('');
+            setResetToken(null);
+            setAuthScreen('login');
+          }}
           error={authError}
         />
       )}

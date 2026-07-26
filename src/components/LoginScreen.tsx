@@ -7,10 +7,16 @@ import { useShellMode } from '../shellContext';
 interface Props {
   onLogin: (email: string, password: string) => void | Promise<void>;
   onRegister: () => void;
+  onForgotPassword?: () => void;
   error?: string;
 }
 
-export default function LoginScreen({ onLogin, onRegister, error: externalError }: Props) {
+export default function LoginScreen({
+  onLogin,
+  onRegister,
+  onForgotPassword,
+  error: externalError,
+}: Props) {
   const shell = useShellMode();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -76,6 +82,17 @@ export default function LoginScreen({ onLogin, onRegister, error: externalError 
             onToggle={() => setShowPassword(s => !s)}
             placeholder="••••••••"
           />
+          {onForgotPassword && (
+            <div style={{ textAlign: 'right', marginTop: 8 }}>
+              <span
+                onClick={onForgotPassword}
+                role="button"
+                style={{ fontSize: 13, fontWeight: 700, color: color.primary, cursor: 'pointer' }}
+              >
+                ¿Has olvidado tu contraseña?
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

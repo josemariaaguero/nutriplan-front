@@ -161,4 +161,4 @@ export interface SuggestionItem {
   user_email?: string | null;
   user_name?: string | null;
 }
-export type AuthScreen = 'login' | 'register' | 'onboarding';
+export type AuthScreen = 'login' | 'register' | 'onboarding' | 'forgot' | 'reset';

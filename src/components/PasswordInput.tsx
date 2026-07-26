@@ -8,6 +8,7 @@ interface Props {
   show: boolean;
   onToggle: () => void;
   style?: CSSProperties;
+  autoComplete?: string;
 }
 
 function EyeIcon({ open }: { open: boolean }) {
@@ -45,6 +46,7 @@ export default function PasswordInput({
   show,
   onToggle,
   style,
+  autoComplete = 'current-password',
 }: Props) {
   return (
     <div style={{ position: 'relative' }}>
@@ -53,7 +55,7 @@ export default function PasswordInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        autoComplete="current-password"
+        autoComplete={autoComplete}
         style={{
           ...inputStyle,
           padding: '14px 48px 14px 16px',
