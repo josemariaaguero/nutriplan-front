@@ -1,10 +1,6 @@
 import { useState } from 'react';
-import type { ReactNode } from 'react';
-import { ONBOARDING_HEALTH_ID } from '../healthProviders';
 import { chipStyle, inputStyle, color, font, gradient, radius, primaryBtnStyle, secondaryBtnStyle } from '../theme';
-import {
-  IconApple, IconLeaf, IconRun, IconWatch, IconActivity, IconWave, IconHeartPulse,
-} from './ui';
+import { IconLeaf } from './ui';
 import { useShellMode } from '../shellContext';
 
 interface OnboardingResult {
@@ -38,9 +34,8 @@ const ACTIVITY = [
   { label: 'Moderadamente activo', desc: 'Ejercicio 3-4 días por semana' },
   { label: 'Muy activo', desc: 'Actividad física intensa 5+ días por semana' },
 ];
-const HEALTH_APPS = Object.keys(ONBOARDING_HEALTH_ID);
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 4;
 
 export default function OnboardingScreen({ name, email, onComplete, error: externalError }: Props) {
   const shell = useShellMode();
@@ -53,7 +48,6 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
   const [dietType, setDietType] = useState('');
   const [allergies, setAllergies] = useState<string[]>([]);
   const [activityLevel, setActivityLevel] = useState('');
-  const [healthApps, setHealthApps] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   function toggleItem(list: string[], setList: (v: string[]) => void, item: string) {
@@ -74,11 +68,6 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
 
   async function finish() {
     const currentWeight = parseFloat(weight) || 70;
-    const healthProviders: Record<string, boolean> = {};
-    for (const app of healthApps) {
-      const id = ONBOARDING_HEALTH_ID[app];
-      if (id) healthProviders[id] = true;
-    }
     setLoading(true);
     try {
       await onComplete({
@@ -92,7 +81,7 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
         dietType: dietType || 'Omnívora',
         allergies,
         activityLevel: activityLevel || 'Moderadamente activo',
-        healthProviders,
+        healthProviders: {},
       });
     } finally {
       setLoading(false);
@@ -106,7 +95,6 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
       flexDirection: 'column',
       minHeight: '100%',
     }}>
-      {/* Progress bar */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <div
@@ -120,7 +108,6 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
         ))}
       </div>
 
-      {/* Step 0: Welcome */}
       {step === 0 && (
         <div style={{ textAlign: 'center', paddingTop: 20 }}>
           <div style={{
@@ -135,10 +122,10 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
             ¡Hola, {name}!
           </div>
           <div style={{ fontSize: 16, color: color.textMuted, fontWeight: 500, marginTop: 8, lineHeight: 1.5 }}>
-            Vamos a configurar tu plan personalizado en 4 pasos rápidos.
+            Vamos a configurar tu plan personalizado en 3 pasos rápidos.
           </div>
           <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
-            {['Tus datos físicos', 'Objetivos y tipo de dieta', 'Nivel de actividad', 'Apps de salud (opcional)'].map((t, i) => (
+            {['Tus datos físicos', 'Objetivos y tipo de dieta', 'Nivel de actividad'].map((t, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%',
@@ -155,7 +142,6 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
         </div>
       )}
 
-      {/* Step 1: Datos físicos */}
       {step === 1 && (
         <div>
           <div style={{ fontFamily: "'Nunito'", fontSize: 22, fontWeight: 800, marginBottom: 6 }}>
@@ -199,7 +185,6 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
         </div>
       )}
 
-      {/* Step 2: Objetivos y dieta */}
       {step === 2 && (
         <div>
           <div style={{ fontFamily: "'Nunito'", fontSize: 22, fontWeight: 800, marginBottom: 6 }}>
@@ -241,7 +226,6 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
         </div>
       )}
 
-      {/* Step 3: Nivel de actividad */}
       {step === 3 && (
         <div>
           <div style={{ fontFamily: "'Nunito'", fontSize: 22, fontWeight: 800, marginBottom: 6 }}>
@@ -276,68 +260,8 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
         </div>
       )}
 
-      {/* Step 4: Apps de salud (opcional) */}
-      {step === 4 && (
-        <div>
-          <div style={{ fontFamily: "'Nunito'", fontSize: 22, fontWeight: 800, marginBottom: 6 }}>
-            Apps de salud
-          </div>
-          <div style={{
-            display: 'inline-block', fontSize: 11, fontWeight: 800,
-            background: '#f0e8df', color: '#9a7a63', padding: '4px 12px',
-            borderRadius: 99, marginBottom: 14,
-          }}>
-            OPCIONAL
-          </div>
-          <div style={{ fontSize: 13.5, color: '#9a9087', fontWeight: 500, marginBottom: 20 }}>
-            Elige las apps que te interesan. No se conectan aún: podrás autorizarlas después en Salud.
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {HEALTH_APPS.map(app => {
-              const icons: Record<string, ReactNode> = {
-                'Apple Health': <IconApple />,
-                'Google Fit': <IconRun />,
-                'Garmin Connect': <IconWatch />,
-                'Strava': <IconActivity />,
-                'Fitbit': <IconWave />,
-                'Samsung Health': <IconHeartPulse />,
-              };
-              const sel = healthApps.includes(app);
-              return (
-                <div
-                  key={app}
-                  onClick={() => toggleItem(healthApps, setHealthApps, app)}
-                  role="button"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 14,
-                    background: sel ? color.chipActiveBg : color.surface, borderRadius: radius.lg,
-                    padding: '14px 16px', cursor: 'pointer',
-                    border: sel ? `2px solid ${color.primary}` : `2px solid ${color.border}`,
-                    transition: 'background .2s ease, border-color .2s ease',
-                  }}
-                >
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-                    background: sel ? color.primarySoft : color.surfaceMuted,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: sel ? color.primary : color.textMuted,
-                  }}>
-                    {icons[app]}
-                  </div>
-                  <div style={{ flex: 1, fontSize: 14.5, fontWeight: 600, color: sel ? color.primaryDeep : color.text }}>
-                    {app}
-                  </div>
-                  {sel && <div style={{ fontSize: 16, fontWeight: 800, color: color.primary }}>✓</div>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       <div style={{ flex: 1 }} />
 
-      {/* Navigation */}
       {externalError && (
         <div style={{ marginTop: 16, fontSize: 13, color: '#e0512c', fontWeight: 600 }}>{externalError}</div>
       )}
