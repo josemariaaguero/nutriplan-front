@@ -189,8 +189,7 @@ export default function MisRecetasScreen() {
         };
         return next;
       });
-      const src = data.source === 'local' ? 'catálogo' : data.source;
-      setLookupHint(`Macros de «${label}» (${src})`);
+      setLookupHint('');
     } catch {
       if (nameLookupGenRef.current[idx] !== gen) return;
       setLookupHint('No encontramos macros. Introdúcelas a mano.');
@@ -358,7 +357,7 @@ export default function MisRecetasScreen() {
           <FieldLabel>Ingredientes</FieldLabel>
           <Notice>
             Macros <strong style={{ color: color.ink }}>por 100 g</strong>.
-            Al dejar de escribir el nombre (~1 s) se actualizan solos.
+            Se actualizan solos o puedes rellenarlos manualmente.
           </Notice>
           {lookupHint && (
             <div style={{ fontSize: 12.5, color: color.textMuted, fontWeight: 600, marginBottom: 8 }}>
