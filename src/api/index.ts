@@ -20,16 +20,17 @@ function mapAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login credentials')) return 'Email o contraseña incorrectos.';
   if (m.includes('user already registered') || m.includes('already been registered')) {
-    return 'Ese email ya está registrado. Prueba iniciar sesión o recuperar la contraseña.';
+    return 'Ese email ya está registrado. Prueba iniciar sesión.';
   }
-  if (m.includes('email not confirmed')) return 'Confirma tu email antes de iniciar sesión.';
+  if (m.includes('email not confirmed')) {
+    return 'No se pudo iniciar sesión. Inténtalo de nuevo más tarde.';
+  }
   if (m.includes('rate limit') || m.includes('over_email_send_rate_limit')) {
-    return 'Demasiados emails enviados. Espera un rato o desactiva “Confirm email” en Supabase.';
+    return 'Demasiados intentos. Espera un momento e inténtalo de nuevo.';
   }
-  if (m.includes('redirect')) {
-    return `${message} Revisa Site URL y Redirect URLs en Supabase.`;
-  }
-  return message || 'Error de autenticación.';
+  // Detalle técnico → genérico (consola del navegador / logs de Supabase)
+  console.error('[auth] supabase error:', message);
+  return 'No se pudo completar la operación. Inténtalo de nuevo.';
 }
 
 export async function register(email: string, password: string, name: string): Promise<TokenResponse> {
@@ -47,7 +48,7 @@ export async function register(email: string, password: string, name: string): P
   if (!data.session) {
     throw new ApiError(
       400,
-      'Cuenta creada, pero falta confirmar el email. En el dashboard de Supabase desactiva “Confirm email” (Authentication → Providers → Email) mientras uses el SMTP gratis, o configura SMTP propio.',
+      'No se pudo completar el registro. Si ya tienes cuenta, inicia sesión.',
     );
   }
   setTokens(data.session.access_token, data.session.refresh_token);

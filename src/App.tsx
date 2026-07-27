@@ -365,7 +365,10 @@ function App() {
       const me = await fetchMe();
       await enterApp(me);
     } catch (e) {
-      setAuthError(e instanceof ApiError ? e.detail : (e instanceof Error ? e.message : 'No se pudo iniciar sesión.'));
+      console.error('[auth] login failed', e);
+      setAuthError(
+        e instanceof ApiError ? e.detail : 'No se pudo iniciar sesión. Inténtalo de nuevo.',
+      );
     }
   }
 
@@ -376,7 +379,12 @@ function App() {
       const me = await fetchMe();
       await enterApp(me);
     } catch (e) {
-      setAuthError(e instanceof ApiError ? e.detail : (e instanceof Error ? e.message : 'No se pudo crear la cuenta.'));
+      console.error('[auth] register failed', e);
+      setAuthError(
+        e instanceof ApiError
+          ? e.detail
+          : 'No se pudo crear la cuenta. Si ya te registraste, prueba iniciar sesión.',
+      );
     }
   }
 
