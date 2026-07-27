@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createMyRecipe,
   deleteMyRecipe,
@@ -33,7 +33,12 @@ const MACRO_100_FIELDS: { key: keyof Pick<IngForm, 'kcal100' | 'p100' | 'c100' |
 ];
 
 function round1(n: number) {
-  return Math.round(n * 10) / 10;
+  return Math.round((Number(n) || 0) * 10) / 10;
+}
+
+/** Controlled number input: keep legitimate zeros visible (e.g. carbs in chicken). */
+function numInputValue(n: number) {
+  return Number.isFinite(n) ? String(n) : '';
 }
 
 function scaleFrom100(per100: number, grams: number) {
@@ -107,12 +112,21 @@ export default function MisRecetasScreen() {
   const [saving, setSaving] = useState(false);
   const [lookupIdx, setLookupIdx] = useState<number | null>(null);
   const [lookupHint, setLookupHint] = useState('');
+  const ingredientsRef = useRef(ingredients);
+  ingredientsRef.current = ingredients;
 
   const preview = useMemo(() => totals(ingredients), [ingredients]);
 
-  async function fillMacros(idx: number) {
-    const ing = ingredients[idx];
-    const name = (ing?.n || '').trim();
+  function patchIngredient(idx: number, patch: Partial<IngForm>) {
+    setIngredients(prev => {
+      const next = [...prev];
+      next[idx] = { ...(next[idx] || emptyIng()), ...patch };
+      return next;
+    });
+  }
+
+  async function fillMacros(idx: number, nameOverride?: string) {
+    const name = (nameOverride ?? ingredientsRef.current[idx]?.n ?? '').trim();
     if (!name) {
       setLookupHint('Escribe el nombre del alimento primero');
       return;
@@ -123,18 +137,22 @@ export default function MisRecetasScreen() {
     try {
       const data = await lookupIngredientNutrition(name, 100);
       const per = data.per_100g;
-      const next = [...ingredients];
-      next[idx] = {
-        ...ing,
-        n: data.name || name,
-        kcal100: round1(per?.kcal ?? data.kcal),
-        p100: round1(per?.p ?? data.p),
-        c100: round1(per?.c ?? data.c),
-        f100: round1(per?.f ?? data.f),
-      };
-      setIngredients(next);
+      const label = data.name || name;
+      setIngredients(prev => {
+        const next = [...prev];
+        const current = next[idx] || emptyIng();
+        next[idx] = {
+          ...current,
+          n: label,
+          kcal100: round1(per?.kcal ?? data.kcal),
+          p100: round1(per?.p ?? data.p),
+          c100: round1(per?.c ?? data.c),
+          f100: round1(per?.f ?? data.f),
+        };
+        return next;
+      });
       const src = data.source === 'local' ? 'catálogo' : data.source;
-      setLookupHint(`Macros de «${next[idx].n}» (${src})`);
+      setLookupHint(`Macros de «${label}» (${src})`);
     } catch {
       setLookupHint('No encontramos macros. Introdúcelas a mano.');
     } finally {
@@ -203,10 +221,16 @@ export default function MisRecetasScreen() {
       return;
     }
     const ings = ingredients.filter(i => i.n.trim()).map(toStoredIngredient);
-    if (!ings.length && preview.kcal <= 0) {
-      setError('Añade al menos un ingrediente con macros o kcal');
+    if (!ings.length) {
+      setError('Añade al menos un ingrediente');
       return;
     }
+    const savedTotals = {
+      kcal: Math.round(ings.reduce((a, i) => a + (Number(i.kcal) || 0), 0)),
+      p: round1(ings.reduce((a, i) => a + (Number(i.p) || 0), 0)),
+      c: round1(ings.reduce((a, i) => a + (Number(i.c) || 0), 0)),
+      f: round1(ings.reduce((a, i) => a + (Number(i.f) || 0), 0)),
+    };
     setSaving(true);
     setError('');
     try {
@@ -217,7 +241,7 @@ export default function MisRecetasScreen() {
         emoji,
         ingredients: ings,
         steps,
-        ...preview,
+        ...savedTotals,
       };
       if (editingId != null) {
         await updateMyRecipe(editingId, body);
@@ -320,14 +344,14 @@ export default function MisRecetasScreen() {
                   <input
                     value={ing.n}
                     onChange={e => {
-                      const next = [...ingredients];
-                      next[idx] = { ...ing, n: e.target.value };
-                      setIngredients(next);
+                      patchIngredient(idx, { n: e.target.value });
                       setLookupHint('');
                     }}
-                    onBlur={() => {
-                      if (ing.n.trim() && !ing.kcal100 && !ing.p100) {
-                        void fillMacros(idx);
+                    onBlur={e => {
+                      const typed = e.currentTarget.value.trim();
+                      const row = ingredientsRef.current[idx];
+                      if (typed && !row?.kcal100 && !row?.p100) {
+                        void fillMacros(idx, typed);
                       }
                     }}
                     placeholder="Ej. brócoli, pollo…"
@@ -337,11 +361,9 @@ export default function MisRecetasScreen() {
                 <div>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: color.textMuted, marginBottom: 3 }}>g en receta</div>
                   <input
-                    value={String(ing.g || '')}
+                    value={numInputValue(ing.g)}
                     onChange={e => {
-                      const next = [...ingredients];
-                      next[idx] = { ...ing, g: Number(e.target.value) || 0 };
-                      setIngredients(next);
+                      patchIngredient(idx, { g: Number(e.target.value) || 0 });
                     }}
                     inputMode="decimal"
                     style={{ ...inputStyle, width: '100%', padding: '8px 8px', fontSize: 13 }}
@@ -353,11 +375,9 @@ export default function MisRecetasScreen() {
                   <div key={field.key}>
                     <div style={{ fontSize: 10.5, fontWeight: 700, color: color.textMuted, marginBottom: 3 }}>{field.label}</div>
                     <input
-                      value={String(ing[field.key] || '')}
+                      value={numInputValue(ing[field.key])}
                       onChange={e => {
-                        const next = [...ingredients];
-                        next[idx] = { ...ing, [field.key]: Number(e.target.value) || 0 };
-                        setIngredients(next);
+                        patchIngredient(idx, { [field.key]: Number(e.target.value) || 0 });
                       }}
                       inputMode="decimal"
                       style={{ ...inputStyle, width: '100%', padding: '8px 6px', fontSize: 12.5 }}
@@ -383,7 +403,7 @@ export default function MisRecetasScreen() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIngredients(ingredients.filter((_, i) => i !== idx))}
+                  onClick={() => setIngredients(prev => prev.filter((_, i) => i !== idx))}
                   style={{
                     border: 'none', background: 'transparent', color: color.textMuted,
                     fontWeight: 700, fontSize: 12.5, cursor: 'pointer', padding: 0,
@@ -397,7 +417,7 @@ export default function MisRecetasScreen() {
           })}
           <Btn
             variant="secondary"
-            onClick={() => setIngredients([...ingredients, emptyIng()])}
+            onClick={() => setIngredients(prev => [...prev, emptyIng()])}
             style={{ marginBottom: 12, padding: '10px 12px' }}
           >
             + Ingrediente
