@@ -14,6 +14,7 @@ import type { Ingredient } from '../types';
 
 const SLOTS = ['Desayuno', 'Almuerzo', 'Snack', 'Cena'];
 const EMOJIS = ['🍽️', '🥗', '🍲', '🍳', '🥑', '🥩', '🐟', '🍜', '🥪', '🥣'];
+const NAME_LOOKUP_DEBOUNCE_MS = 1000;
 
 /** Form row: macros are entered per 100 g (as on packaging), then scaled by grams. */
 type IngForm = {
@@ -114,8 +115,19 @@ export default function MisRecetasScreen() {
   const [lookupHint, setLookupHint] = useState('');
   const ingredientsRef = useRef(ingredients);
   ingredientsRef.current = ingredients;
+  const nameLookupTimersRef = useRef<Record<number, number>>({});
+  const nameLookupGenRef = useRef<Record<number, number>>({});
 
   const preview = useMemo(() => totals(ingredients), [ingredients]);
+
+  useEffect(() => {
+    return () => {
+      for (const id of Object.values(nameLookupTimersRef.current)) {
+        window.clearTimeout(id);
+      }
+      nameLookupTimersRef.current = {};
+    };
+  }, []);
 
   function patchIngredient(idx: number, patch: Partial<IngForm>) {
     setIngredients(prev => {
@@ -125,24 +137,50 @@ export default function MisRecetasScreen() {
     });
   }
 
+  function clearNameLookupTimer(idx: number) {
+    const timer = nameLookupTimersRef.current[idx];
+    if (timer != null) {
+      window.clearTimeout(timer);
+      delete nameLookupTimersRef.current[idx];
+    }
+  }
+
+  function scheduleNameLookup(idx: number, typed: string) {
+    clearNameLookupTimer(idx);
+    const query = typed.trim();
+    if (query.length < 2) return;
+    nameLookupTimersRef.current[idx] = window.setTimeout(() => {
+      delete nameLookupTimersRef.current[idx];
+      void fillMacros(idx, query);
+    }, NAME_LOOKUP_DEBOUNCE_MS);
+  }
+
   async function fillMacros(idx: number, nameOverride?: string) {
-    const name = (nameOverride ?? ingredientsRef.current[idx]?.n ?? '').trim();
-    if (!name) {
+    clearNameLookupTimer(idx);
+    const query = (nameOverride ?? ingredientsRef.current[idx]?.n ?? '').trim();
+    if (!query) {
       setLookupHint('Escribe el nombre del alimento primero');
       return;
     }
+    const gen = (nameLookupGenRef.current[idx] || 0) + 1;
+    nameLookupGenRef.current[idx] = gen;
     setLookupIdx(idx);
-    setLookupHint('');
+    setLookupHint('Buscando macros…');
     setError('');
     try {
-      const data = await lookupIngredientNutrition(name, 100);
+      const data = await lookupIngredientNutrition(query, 100);
+      if (nameLookupGenRef.current[idx] !== gen) return;
+      const current = (ingredientsRef.current[idx]?.n || '').trim();
+      // Ignore stale responses if the user kept typing a different name
+      if (current && current.toLowerCase() !== query.toLowerCase()) return;
+
       const per = data.per_100g;
-      const label = data.name || name;
+      const label = data.name || query;
       setIngredients(prev => {
         const next = [...prev];
-        const current = next[idx] || emptyIng();
+        const row = next[idx] || emptyIng();
         next[idx] = {
-          ...current,
+          ...row,
           n: label,
           kcal100: round1(per?.kcal ?? data.kcal),
           p100: round1(per?.p ?? data.p),
@@ -154,9 +192,12 @@ export default function MisRecetasScreen() {
       const src = data.source === 'local' ? 'catálogo' : data.source;
       setLookupHint(`Macros de «${label}» (${src})`);
     } catch {
+      if (nameLookupGenRef.current[idx] !== gen) return;
       setLookupHint('No encontramos macros. Introdúcelas a mano.');
     } finally {
-      setLookupIdx(null);
+      if (nameLookupGenRef.current[idx] === gen) {
+        setLookupIdx(current => (current === idx ? null : current));
+      }
     }
   }
 
@@ -317,7 +358,7 @@ export default function MisRecetasScreen() {
           <FieldLabel>Ingredientes</FieldLabel>
           <Notice>
             Macros <strong style={{ color: color.ink }}>por 100 g</strong>.
-            Usa «Rellenar» para verdura, carne y alimentos comunes.
+            Al dejar de escribir el nombre (~1 s) se actualizan solos.
           </Notice>
           {lookupHint && (
             <div style={{ fontSize: 12.5, color: color.textMuted, fontWeight: 600, marginBottom: 8 }}>
@@ -344,15 +385,14 @@ export default function MisRecetasScreen() {
                   <input
                     value={ing.n}
                     onChange={e => {
-                      patchIngredient(idx, { n: e.target.value });
+                      const value = e.target.value;
+                      patchIngredient(idx, { n: value });
                       setLookupHint('');
+                      scheduleNameLookup(idx, value);
                     }}
                     onBlur={e => {
                       const typed = e.currentTarget.value.trim();
-                      const row = ingredientsRef.current[idx];
-                      if (typed && !row?.kcal100 && !row?.p100) {
-                        void fillMacros(idx, typed);
-                      }
+                      if (typed.length >= 2) void fillMacros(idx, typed);
                     }}
                     placeholder="Ej. brócoli, pollo…"
                     style={{ ...inputStyle, width: '100%', padding: '8px 8px', fontSize: 13 }}
@@ -387,11 +427,12 @@ export default function MisRecetasScreen() {
               </div>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: color.textMuted, marginBottom: 8 }}>
                 En la receta ({ing.g || 0} g): {scaled.kcal} kcal · P{scaled.p} C{scaled.c} G{scaled.f}
+                {looking ? ' · buscando…' : ''}
               </div>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <button
                   type="button"
-                  disabled={looking || lookupIdx != null}
+                  disabled={looking}
                   onClick={() => void fillMacros(idx)}
                   style={{
                     border: 'none', background: 'transparent', color: color.primaryDeep,
@@ -403,7 +444,11 @@ export default function MisRecetasScreen() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIngredients(prev => prev.filter((_, i) => i !== idx))}
+                  onClick={() => {
+                    clearNameLookupTimer(idx);
+                    nameLookupGenRef.current[idx] = (nameLookupGenRef.current[idx] || 0) + 1;
+                    setIngredients(prev => prev.filter((_, i) => i !== idx));
+                  }}
                   style={{
                     border: 'none', background: 'transparent', color: color.textMuted,
                     fontWeight: 700, fontSize: 12.5, cursor: 'pointer', padding: 0,

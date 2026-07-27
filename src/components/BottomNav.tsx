@@ -7,14 +7,24 @@ export default function BottomNav() {
   const { go } = useAppActions();
 
   return (
-    <nav style={{
-      position: 'absolute', bottom: 0, left: 0, right: 0, height: 84,
-      padding: '8px 8px 22px', display: 'flex', alignItems: 'flex-start',
-      justifyContent: 'space-around',
-      background: 'rgba(255,246,236,.86)',
-      backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
-      borderTop: `1px solid ${color.borderWarm}`, zIndex: 30,
-    }}>
+    <nav
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 'calc(62px + max(22px, env(safe-area-inset-bottom, 0px)))',
+        padding: '8px 8px max(12px, env(safe-area-inset-bottom, 0px))',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-around',
+        background: 'rgba(255,246,236,.86)',
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
+        borderTop: `1px solid ${color.borderWarm}`,
+        zIndex: 30,
+      }}
+    >
       {NAV_TABS.map(tab => {
         const active = isNavTabActive(tab.id, state);
         const tabColor = active ? color.primary : color.textSoft;

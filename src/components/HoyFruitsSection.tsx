@@ -48,7 +48,7 @@ function FruitResultButton({
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 700 }}>{title}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: color.text }}>{title}</div>
         <div style={{ fontSize: 12, fontWeight: 600, color: color.textMuted, marginTop: 2 }}>
           {subtitle}
         </div>
@@ -223,7 +223,7 @@ export default function HoyFruitsSection({ fruits, onChange }: Props) {
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>{fruit.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: color.text }}>{fruit.name}</div>
                     <div style={{
                       fontSize: 12, fontWeight: 600, color: color.textMuted, marginTop: 3,
                     }}>

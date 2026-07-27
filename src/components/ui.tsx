@@ -190,11 +190,24 @@ export function ScreenPage({ children, className = '', style, pad = 'tab' }: Div
     pad === 'tab'
       ? shell === 'web'
         ? { padding: '36px 28px 48px' }
-        : { padding: '64px 20px 120px' }
+        : {
+            paddingTop: 'max(64px, calc(48px + env(safe-area-inset-top, 0px)))',
+            paddingRight: 20,
+            paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 0px))',
+            paddingLeft: 20,
+          }
       : pad === 'auth'
         ? shell === 'web'
           ? { padding: '40px 28px 36px', display: 'flex', flexDirection: 'column' as const, minHeight: '100%' }
-          : { padding: '64px 28px 40px', display: 'flex', flexDirection: 'column' as const, minHeight: '100%' }
+          : {
+              paddingTop: 'max(64px, calc(48px + env(safe-area-inset-top, 0px)))',
+              paddingRight: 28,
+              paddingBottom: 'max(40px, env(safe-area-inset-bottom, 0px))',
+              paddingLeft: 28,
+              display: 'flex',
+              flexDirection: 'column' as const,
+              minHeight: '100%',
+            }
         : {};
   return (
     <div className={`np-page ${className}`.trim()} style={{ ...padStyle, ...style }}>

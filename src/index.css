@@ -37,11 +37,35 @@
   --np-font-display: 'Nunito', system-ui, sans-serif;
   --np-font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
   --np-ease: 200ms ease;
+  /* Full viewport height: dvh avoids mobile browser chrome gaps; fill-available for older iOS */
+  --np-app-height: 100vh;
+  --np-app-height: 100dvh;
+  --np-safe-top: env(safe-area-inset-top, 0px);
+  --np-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-html, body, #root {
+html {
   height: 100%;
+  height: -webkit-fill-available;
+}
+
+html,
+body,
+#root {
   width: 100%;
+  min-height: 100%;
+  min-height: var(--np-app-height);
+  min-height: -webkit-fill-available;
+}
+
+body,
+#root {
+  height: 100%;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
 }
 
 body {
@@ -52,6 +76,22 @@ body {
 
 button, input, select, textarea {
   font-family: inherit;
+  /* iOS Safari paints button labels system-blue unless color is set */
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+
+a {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+  text-decoration: none;
+}
+
+a:hover,
+a:active,
+a:visited {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
 }
 
 button:focus-visible,
