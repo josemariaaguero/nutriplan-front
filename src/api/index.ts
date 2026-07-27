@@ -19,9 +19,16 @@ function requireSupabase(): void {
 function mapAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login credentials')) return 'Email o contraseña incorrectos.';
-  if (m.includes('user already registered')) return 'Ese email ya está registrado.';
+  if (m.includes('user already registered') || m.includes('already been registered')) {
+    return 'Ese email ya está registrado. Prueba iniciar sesión o recuperar la contraseña.';
+  }
   if (m.includes('email not confirmed')) return 'Confirma tu email antes de iniciar sesión.';
-  if (m.includes('password')) return message;
+  if (m.includes('rate limit') || m.includes('over_email_send_rate_limit')) {
+    return 'Demasiados emails enviados. Espera un rato o desactiva “Confirm email” en Supabase.';
+  }
+  if (m.includes('redirect')) {
+    return `${message} Revisa Site URL y Redirect URLs en Supabase.`;
+  }
   return message || 'Error de autenticación.';
 }
 

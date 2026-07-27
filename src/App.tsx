@@ -365,7 +365,7 @@ function App() {
       const me = await fetchMe();
       await enterApp(me);
     } catch (e) {
-      setAuthError(e instanceof ApiError ? e.detail : 'No se pudo iniciar sesión.');
+      setAuthError(e instanceof ApiError ? e.detail : (e instanceof Error ? e.message : 'No se pudo iniciar sesión.'));
     }
   }
 
@@ -376,7 +376,7 @@ function App() {
       const me = await fetchMe();
       await enterApp(me);
     } catch (e) {
-      setAuthError(e instanceof ApiError ? e.detail : 'No se pudo crear la cuenta.');
+      setAuthError(e instanceof ApiError ? e.detail : (e instanceof Error ? e.message : 'No se pudo crear la cuenta.'));
     }
   }
 
