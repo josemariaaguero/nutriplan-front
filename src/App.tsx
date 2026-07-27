@@ -1127,7 +1127,7 @@ function App() {
                 <div
                   ref={scrollRef}
                   className="np-scroll"
-                  style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
+                  style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
                 >
                   {mainScreens}
                 </div>

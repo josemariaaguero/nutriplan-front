@@ -386,13 +386,15 @@ export default function SportScreen() {
                     width: 46, height: 28, borderRadius: 99, position: 'relative',
                     background: sp.on ? '#18bd73' : '#d8d0c4',
                     flexShrink: 0, border: 'none', cursor: 'pointer', padding: 0,
-                    transition: 'background .2s',
+                    transition: 'background 200ms cubic-bezier(0.22, 1, 0.36, 1)',
                   }}
                 >
                   <span style={{
-                    position: 'absolute', top: 2, left: sp.on ? 22 : 2,
+                    position: 'absolute', top: 2, left: 2,
                     width: 24, height: 24, borderRadius: '50%', background: '#fff',
-                    boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,.2)',
+                    transform: sp.on ? 'translate3d(20px, 0, 0)' : 'translate3d(0, 0, 0)',
+                    transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)',
                     pointerEvents: 'none',
                   }} />
                 </button>

@@ -232,10 +232,13 @@ export default function HoyScreen() {
                     </span>
                   </div>
                   <div style={{ height: 6, borderRadius: radius.pill, background: row.track, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%', width: `${pct}%`, background: row.color,
-                      borderRadius: radius.pill, transition: 'width 0.6s ease',
-                    }} />
+                    <div
+                      className="np-bar-fill"
+                      style={{
+                        background: row.color,
+                        transform: `scaleX(${Math.max(0, Math.min(pct, 100)) / 100})`,
+                      }}
+                    />
                   </div>
                 </div>
               );

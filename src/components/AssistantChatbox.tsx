@@ -2,13 +2,14 @@ import { useRef, useState } from 'react';
 import { assistantChat } from '../api';
 import { hasAcceptedSession, hasDismissedForever, LEGAL_COPY } from '../legalConsent';
 import { color, cardStyle, inputStyle, radius, font, shadow } from '../theme';
+import AssistantMarkdown from './AssistantMarkdown';
 import { Btn } from './ui';
 
 export type AssistantMsg = { role: 'user' | 'assistant'; content: string };
 
 const WELCOME: AssistantMsg = {
   role: 'assistant',
-  content: 'Hola. Pregúntame por la app o por recetas con tus ingredientes.',
+  content: '¡Hola! Pregúntame lo que necesites sobre la app o dame ingredientes y te propongo recetas.',
 };
 
 export function useAssistantChat({
@@ -98,8 +99,10 @@ export function AssistantChatBody({
               boxShadow: compact ? shadow.sm : cardStyle.boxShadow,
             }}
           >
-            <div style={{ fontSize: compact ? 13.5 : 14, fontWeight: 500, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
-              {m.content}
+            <div style={{ fontSize: compact ? 13.5 : 14, fontWeight: 500, lineHeight: 1.45 }}>
+              {m.role === 'assistant'
+                ? <AssistantMarkdown text={m.content} compact={compact} />
+                : <span style={{ whiteSpace: 'pre-wrap' }}>{m.content}</span>}
             </div>
           </div>
         ))}

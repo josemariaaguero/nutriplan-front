@@ -121,8 +121,10 @@ export const inputStyle: CSSProperties = {
   outline: 'none',
   background: color.surface,
   color: color.text,
-  transition: 'border-color .2s ease, box-shadow .2s ease',
+  transition: 'border-color 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1)',
 };
+
+const EASE = '200ms cubic-bezier(0.22, 1, 0.36, 1)';
 
 export function chipStyle(active: boolean): CSSProperties {
   return {
@@ -134,7 +136,7 @@ export function chipStyle(active: boolean): CSSProperties {
     cursor: 'pointer',
     fontSize: 14,
     fontWeight: 700,
-    transition: 'background .2s ease, border-color .2s ease, color .2s ease',
+    transition: `background ${EASE}, border-color ${EASE}, color ${EASE}, transform ${EASE}`,
     border: active ? `2px solid ${color.primary}` : `2px solid ${color.border}`,
     background: active ? color.chipActiveBg : color.surface,
     color: active ? color.primaryDeep : color.textBody,
@@ -153,7 +155,7 @@ export function primaryBtnStyle(opts?: { disabled?: boolean; padding?: number | 
     fontWeight: 800,
     cursor: disabled ? 'not-allowed' : 'pointer',
     boxShadow: disabled ? 'none' : shadow.cta,
-    transition: 'opacity .2s ease, background .2s ease',
+    transition: `opacity ${EASE}, transform ${EASE}, box-shadow ${EASE}`,
     border: 'none',
   };
 }
@@ -169,7 +171,7 @@ export function secondaryBtnStyle(): CSSProperties {
     fontWeight: 800,
     cursor: 'pointer',
     border: `2px solid ${color.border}`,
-    transition: 'background .2s ease, border-color .2s ease',
+    transition: `background ${EASE}, border-color ${EASE}, transform ${EASE}`,
   };
 }
 
@@ -180,7 +182,7 @@ export function darkBtnStyle(opts?: { busy?: boolean }): CSSProperties {
     borderRadius: radius.lg,
     cursor: opts?.busy ? 'wait' : 'pointer',
     opacity: opts?.busy ? 0.85 : 1,
-    transition: 'opacity .2s ease, background .2s ease',
+    transition: `opacity ${EASE}, background ${EASE}, transform ${EASE}`,
     border: 'none',
   };
 }
@@ -204,5 +206,5 @@ export const backBtnStyle: CSSProperties = {
   flexShrink: 0,
   border: 'none',
   padding: 0,
-  transition: 'background .2s ease',
+  transition: `background ${EASE}, transform ${EASE}`,
 };

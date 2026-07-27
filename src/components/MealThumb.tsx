@@ -21,10 +21,12 @@ export default function MealThumb({
   const fallback = resolveMealImage(meal.name || '', meal.slot, meal.image);
   const [photo, setPhoto] = useState(fallback);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setPhoto(fallback);
     setFailed(false);
+    setReady(false);
   }, [fallback]);
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function MealThumb({
       if (!cancelled && url) {
         setPhoto(url);
         setFailed(false);
+        setReady(false);
       }
     });
     return () => { cancelled = true; };
@@ -51,6 +54,7 @@ export default function MealThumb({
         overflow: 'hidden',
         backgroundImage: meal.swatch,
         backgroundSize: 'cover',
+        contain: 'layout paint style',
         ...style,
       }}
     >
@@ -58,11 +62,15 @@ export default function MealThumb({
         <img
           src={photo}
           alt=""
+          loading="lazy"
+          decoding="async"
+          className={`np-thumb-img ${ready ? 'is-ready' : 'is-loading'}`}
           style={{
             position: 'absolute', inset: 0,
             width: '100%', height: '100%',
             objectFit: 'cover',
           }}
+          onLoad={() => setReady(true)}
           onError={() => setFailed(true)}
         />
       )}

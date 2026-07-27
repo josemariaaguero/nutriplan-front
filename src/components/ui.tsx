@@ -191,18 +191,20 @@ export function ScreenPage({ children, className = '', style, pad = 'tab' }: Div
       ? shell === 'web'
         ? { padding: '36px 28px 48px' }
         : {
-            paddingTop: 'max(64px, calc(48px + env(safe-area-inset-top, 0px)))',
+            // Edge-to-edge under status bar; modest inset for readable titles
+            paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
             paddingRight: 20,
-            paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 0px))',
+            // Nav is in-flow on real phones; keep a little breathing room only
+            paddingBottom: 28,
             paddingLeft: 20,
           }
       : pad === 'auth'
         ? shell === 'web'
           ? { padding: '40px 28px 36px', display: 'flex', flexDirection: 'column' as const, minHeight: '100%' }
           : {
-              paddingTop: 'max(64px, calc(48px + env(safe-area-inset-top, 0px)))',
+              paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))',
               paddingRight: 28,
-              paddingBottom: 'max(40px, env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'max(28px, env(safe-area-inset-bottom, 0px))',
               paddingLeft: 28,
               display: 'flex',
               flexDirection: 'column' as const,
@@ -390,7 +392,7 @@ export function EmptyState({
 
 export function BackButton({ onClick, style }: { onClick: () => void; style?: CSSProperties }) {
   return (
-    <button type="button" aria-label="Volver" onClick={onClick} className="np-back" style={{ ...backBtnStyle, ...style }}>
+    <button type="button" aria-label="Volver" onClick={onClick} className="np-back np-pressable" style={{ ...backBtnStyle, ...style }}>
       <IconBack />
     </button>
   );
@@ -455,6 +457,7 @@ export function Btn({
   return (
     <button
       type="button"
+      className="np-pressable"
       disabled={disabled || busy}
       style={{
         ...base,

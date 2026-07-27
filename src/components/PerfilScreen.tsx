@@ -365,12 +365,14 @@ function EditNotificationsPanel({ onClose }: { onClose: () => void }) {
               <div style={{
                 width: 46, height: 28, borderRadius: 99, flexShrink: 0,
                 background: on ? '#ff6a3d' : '#e8dcd0',
-                position: 'relative', transition: 'background .15s',
+                position: 'relative', transition: 'background 200ms cubic-bezier(0.22, 1, 0.36, 1)',
               }}>
                 <div style={{
-                  position: 'absolute', top: 3, left: on ? 21 : 3,
+                  position: 'absolute', top: 3, left: 3,
                   width: 22, height: 22, borderRadius: '50%', background: '#fff',
-                  boxShadow: '0 1px 4px rgba(0,0,0,.15)', transition: 'left .15s',
+                  boxShadow: '0 1px 4px rgba(0,0,0,.15)',
+                  transform: on ? 'translate3d(18px, 0, 0)' : 'translate3d(0, 0, 0)',
+                  transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)',
                 }} />
               </div>
             </div>
