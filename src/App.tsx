@@ -71,6 +71,7 @@ import {
   logoutLocal,
   register as apiRegister,
   resetPassword as apiResetPassword,
+  syncSessionFromSupabase,
   swapTodayIngredient,
   swapTodayMeal,
   syncHealth,
@@ -82,6 +83,7 @@ import {
 } from './api';
 import { ApiError } from './api/client';
 import { hasTokens } from './api/tokens';
+import { supabase } from './supabase';
 import { shouldShowLegalModal } from './legalConsent';
 import { color, font } from './theme';
 import type { ConnectProviderResult } from './store';
@@ -149,22 +151,39 @@ function readOAuthReturn(): { screen: Screen | null; banner: string } {
   return { screen: onSalud ? 'salud' : null, banner };
 }
 
-function readResetTokenFromUrl(): string | null {
-  if (typeof window === 'undefined') return null;
+function isPasswordRecoveryRedirect(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hash = window.location.hash.replace(/^#/, '');
+  if (hash) {
+    const hp = new URLSearchParams(hash);
+    if (hp.get('type') === 'recovery') return true;
+  }
+  const q = new URLSearchParams(window.location.search);
+  return q.get('type') === 'recovery';
+}
+
+function clearAuthParamsFromUrl() {
+  if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
-  const token = url.searchParams.get('reset_token')?.trim() || null;
-  if (token) {
-    url.searchParams.delete('reset_token');
+  let dirty = false;
+  if (url.hash && (url.hash.includes('access_token') || url.hash.includes('type='))) {
+    url.hash = '';
+    dirty = true;
+  }
+  if (url.searchParams.has('type') || url.searchParams.has('code')) {
+    url.searchParams.delete('type');
+    url.searchParams.delete('code');
+    dirty = true;
+  }
+  if (dirty) {
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }
-  return token;
 }
 
 function App() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
-  const [resetToken, setResetToken] = useState<string | null>(null);
   const [pendingReg, setPendingReg] = useState<{ name: string; email: string } | null>(null);
   const [authError, setAuthError] = useState('');
 
@@ -290,19 +309,32 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        // Keep API Bearer cache in sync with Supabase session
+        void syncSessionFromSupabase();
+      }
+      if (event === 'PASSWORD_RECOVERY' && !cancelled) {
+        setUser(null);
+        setAuthScreen('reset');
+        clearAuthParamsFromUrl();
+      }
+    });
+
     (async () => {
-      const token = readResetTokenFromUrl();
-      if (token) {
-        if (!cancelled) {
-          setResetToken(token);
-          setAuthScreen('reset');
-          setUser(null);
-          setBootstrapping(false);
-        }
+      await syncSessionFromSupabase();
+      if (cancelled) return;
+
+      if (isPasswordRecoveryRedirect()) {
+        setUser(null);
+        setAuthScreen('reset');
+        clearAuthParamsFromUrl();
+        setBootstrapping(false);
         return;
       }
+
       if (!hasTokens()) {
-        if (!cancelled) setBootstrapping(false);
+        setBootstrapping(false);
         return;
       }
       try {
@@ -310,7 +342,7 @@ function App() {
         if (cancelled) return;
         await enterApp(me);
       } catch {
-        logoutLocal();
+        await logoutLocal();
         if (!cancelled) {
           setUser(null);
           setAuthScreen('login');
@@ -319,7 +351,10 @@ function App() {
         if (!cancelled) setBootstrapping(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -349,7 +384,7 @@ function App() {
     setAuthError('');
     try {
       const res = await apiForgotPassword(email);
-      return { message: res.message, devResetUrl: res.dev_reset_url };
+      return { message: res.message };
     } catch (e) {
       const msg = e instanceof ApiError ? e.detail : 'No se pudo enviar el enlace.';
       setAuthError(msg);
@@ -359,13 +394,10 @@ function App() {
 
   async function handleResetPassword(password: string) {
     setAuthError('');
-    if (!resetToken) {
-      setAuthError('El enlace no es válido. Solicita uno nuevo.');
-      throw new Error('missing reset token');
-    }
     try {
-      await apiResetPassword(resetToken, password);
-      setResetToken(null);
+      await apiResetPassword(password);
+      clearAuthParamsFromUrl();
+      await logoutLocal();
     } catch (e) {
       setAuthError(e instanceof ApiError ? e.detail : 'No se pudo actualizar la contraseña.');
       throw e;
@@ -837,7 +869,7 @@ function App() {
   }, [dayMacros, user?.dietType, user?.allergies]);
 
   const logout = useCallback(() => {
-    logoutLocal();
+    void logoutLocal();
     setUser(null);
     setPendingReg(null);
     setAuthScreen('login');
@@ -930,7 +962,6 @@ function App() {
           onSubmit={handleResetPassword}
           onBack={() => {
             setAuthError('');
-            setResetToken(null);
             setAuthScreen('login');
           }}
           error={authError}

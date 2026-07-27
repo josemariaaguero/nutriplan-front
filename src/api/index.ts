@@ -1,55 +1,105 @@
 import { apiRequest } from './client';
+import { ApiError } from './client';
 import { applyDayPlan, fruitToApi, profileToUser, sportToApi, userToProfileUpdate } from './mappers';
 import { clearTokens, setTokens } from './tokens';
 import type { DayPlanApi, OnboardingPayload, ProfileApi, TokenResponse } from './types';
 import type { Ingredient, Meal, Sport, User } from '../types';
 import type { LoggedFruit } from '../fruits';
+import { isSupabaseConfigured, supabase } from '../supabase';
+
+function requireSupabase(): void {
+  if (!isSupabaseConfigured()) {
+    throw new ApiError(
+      503,
+      'Supabase no está configurado. Añade VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY en .env',
+    );
+  }
+}
+
+function mapAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('invalid login credentials')) return 'Email o contraseña incorrectos.';
+  if (m.includes('user already registered')) return 'Ese email ya está registrado.';
+  if (m.includes('email not confirmed')) return 'Confirma tu email antes de iniciar sesión.';
+  if (m.includes('password')) return message;
+  return message || 'Error de autenticación.';
+}
 
 export async function register(email: string, password: string, name: string): Promise<TokenResponse> {
-  const tokens = await apiRequest<TokenResponse>('/api/v1/auth/register', {
-    method: 'POST',
-    auth: false,
-    body: { email, password, name },
+  requireSupabase();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } },
   });
-  setTokens(tokens.access_token, tokens.refresh_token);
-  return tokens;
+  if (error) throw new ApiError(400, mapAuthError(error.message));
+  if (!data.session) {
+    throw new ApiError(
+      400,
+      'Revisa tu email para confirmar la cuenta. Si no llega, desactiva “Confirm email” en Supabase (local).',
+    );
+  }
+  setTokens(data.session.access_token, data.session.refresh_token);
+  return {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    token_type: 'bearer',
+  };
 }
 
 export async function login(email: string, password: string): Promise<TokenResponse> {
-  const tokens = await apiRequest<TokenResponse>('/api/v1/auth/login', {
-    method: 'POST',
-    auth: false,
-    body: { email, password },
-  });
-  setTokens(tokens.access_token, tokens.refresh_token);
-  return tokens;
+  requireSupabase();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new ApiError(401, mapAuthError(error.message));
+  if (!data.session) throw new ApiError(401, 'No se pudo iniciar sesión.');
+  setTokens(data.session.access_token, data.session.refresh_token);
+  return {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    token_type: 'bearer',
+  };
 }
 
-export async function forgotPassword(
-  email: string,
-): Promise<{ message: string; dev_reset_url?: string | null }> {
-  return apiRequest('/api/v1/auth/forgot-password', {
-    method: 'POST',
-    auth: false,
-    body: { email },
-  });
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  requireSupabase();
+  const redirectTo = `${window.location.origin}/`;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw new ApiError(400, mapAuthError(error.message));
+  return {
+    message: 'Si existe una cuenta con ese email, recibirás un enlace para restablecer la contraseña.',
+  };
 }
 
-export async function resetPassword(token: string, password: string): Promise<{ message: string }> {
-  return apiRequest('/api/v1/auth/reset-password', {
-    method: 'POST',
-    auth: false,
-    body: { token, password },
-  });
+export async function resetPassword(password: string): Promise<{ message: string }> {
+  requireSupabase();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw new ApiError(400, mapAuthError(error.message));
+  return { message: 'Contraseña actualizada. Ya puedes iniciar sesión.' };
 }
 
-export function logoutLocal(): void {
+export async function logoutLocal(): Promise<void> {
   clearTokens();
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // ignore
+  }
 }
 
-export async function fetchMe(): Promise<User> {
-  const profile = await apiRequest<ProfileApi>('/api/v1/auth/me');
-  return profileToUser(profile);
+/** Sync local token cache from Supabase session (boot / recovery). */
+export async function syncSessionFromSupabase(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const { data } = await supabase.auth.getSession();
+  if (data.session) {
+    setTokens(data.session.access_token, data.session.refresh_token);
+    return true;
+  }
+  clearTokens();
+  return false;
+}
+
+export function fetchMe(): Promise<User> {
+  return apiRequest<ProfileApi>('/api/v1/auth/me').then(profileToUser);
 }
 
 export async function completeOnboarding(payload: OnboardingPayload): Promise<User> {

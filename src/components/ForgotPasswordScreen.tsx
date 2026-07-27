@@ -4,7 +4,7 @@ import { BackButton } from './ui';
 import { useShellMode } from '../shellContext';
 
 interface Props {
-  onSubmit: (email: string) => Promise<{ message: string; devResetUrl?: string | null }>;
+  onSubmit: (email: string) => Promise<{ message: string }>;
   onBack: () => void;
   error?: string;
 }
@@ -15,7 +15,6 @@ export default function ForgotPasswordScreen({ onSubmit, onBack, error: external
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [doneMessage, setDoneMessage] = useState('');
-  const [devUrl, setDevUrl] = useState<string | null>(null);
 
   async function handleSubmit() {
     if (!email.trim()) {
@@ -27,7 +26,6 @@ export default function ForgotPasswordScreen({ onSubmit, onBack, error: external
     try {
       const res = await onSubmit(email.trim());
       setDoneMessage(res.message);
-      setDevUrl(res.devResetUrl ?? null);
     } catch {
       // Error shown via externalError from parent
     } finally {
@@ -57,24 +55,9 @@ export default function ForgotPasswordScreen({ onSubmit, onBack, error: external
           <p style={{ fontSize: 14.5, lineHeight: 1.5, color: color.textBody, margin: 0, fontWeight: 500 }}>
             {doneMessage}
           </p>
-          {devUrl && (
-            <div
-              style={{
-                padding: 14,
-                borderRadius: 14,
-                background: color.surfaceMuted ?? 'rgba(0,0,0,0.04)',
-                fontSize: 13,
-                lineHeight: 1.45,
-                color: color.textBody,
-                wordBreak: 'break-all',
-              }}
-            >
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Enlace de prueba (sin SMTP):</div>
-              <a href={devUrl} style={{ color: color.primary, fontWeight: 600 }}>
-                {devUrl}
-              </a>
-            </div>
-          )}
+          <p style={{ fontSize: 13, lineHeight: 1.45, color: color.textMuted, margin: 0 }}>
+            Revisa también la carpeta de spam. El correo lo envía Supabase.
+          </p>
           <button
             type="button"
             onClick={onBack}

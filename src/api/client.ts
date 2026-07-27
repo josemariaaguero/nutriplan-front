@@ -1,4 +1,5 @@
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './tokens';
+import { clearTokens, getAccessToken, setTokens } from './tokens';
+import { supabase } from '../supabase';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
   || 'http://127.0.0.1:8000';
@@ -35,23 +36,15 @@ async function parseError(res: Response): Promise<ApiError> {
 let refreshPromise: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
-  const refresh = getRefreshToken();
-  if (!refresh) return false;
-
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refresh }),
-        });
-        if (!res.ok) {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error || !data.session) {
           clearTokens();
           return false;
         }
-        const data = await res.json() as { access_token: string; refresh_token: string };
-        setTokens(data.access_token, data.refresh_token);
+        setTokens(data.session.access_token, data.session.refresh_token);
         return true;
       } catch {
         clearTokens();
