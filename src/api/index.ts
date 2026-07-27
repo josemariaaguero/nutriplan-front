@@ -98,7 +98,8 @@ export async function logoutLocal(): Promise<void> {
   }
 }
 
-/** Sync local token cache from Supabase session (boot / recovery). */
+/** Sync local Bearer cache from Supabase session. Does not clear tokens if session is missing
+ * (avoids races with in-flight login). Callers that need logout must use logoutLocal(). */
 export async function syncSessionFromSupabase(): Promise<boolean> {
   if (!isSupabaseConfigured()) return false;
   const { data } = await supabase.auth.getSession();
@@ -106,7 +107,6 @@ export async function syncSessionFromSupabase(): Promise<boolean> {
     setTokens(data.session.access_token, data.session.refresh_token);
     return true;
   }
-  clearTokens();
   return false;
 }
 

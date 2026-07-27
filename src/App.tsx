@@ -82,7 +82,7 @@ import {
   type SportActivityApi,
 } from './api';
 import { ApiError } from './api/client';
-import { hasTokens } from './api/tokens';
+import { clearTokens } from './api/tokens';
 import { supabase } from './supabase';
 import { shouldShowLegalModal } from './legalConsent';
 import { color, font } from './theme';
@@ -262,14 +262,15 @@ function App() {
   }
 
   async function enterApp(u: User) {
-    setUser(u);
-    setPendingReg(null);
     setAuthError('');
     if (!u.onboardingComplete) {
-      setPendingReg({ name: u.name, email: u.email });
+      setUser(u);
+      setPendingReg({ name: u.name || '', email: u.email || '' });
       setAuthScreen('onboarding');
       return;
     }
+    setPendingReg(null);
+    setUser(u);
     setAuthScreen('login');
     const oauth = readOAuthReturn();
     setScreen(oauth.screen || 'hoy');
@@ -310,41 +311,58 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        // Keep API Bearer cache in sync with Supabase session
-        void syncSessionFromSupabase();
+      if (event === 'PASSWORD_RECOVERY') {
+        if (!cancelled) {
+          setUser(null);
+          setPendingReg(null);
+          setAuthScreen('reset');
+          clearAuthParamsFromUrl();
+        }
+        return;
       }
-      if (event === 'PASSWORD_RECOVERY' && !cancelled) {
-        setUser(null);
-        setAuthScreen('reset');
-        clearAuthParamsFromUrl();
+      if (event === 'SIGNED_OUT') {
+        if (!cancelled) {
+          clearTokens();
+          setUser(null);
+          setPendingReg(null);
+          setAuthScreen('login');
+        }
+        return;
+      }
+      if (session) {
+        void syncSessionFromSupabase();
       }
     });
 
     (async () => {
-      await syncSessionFromSupabase();
-      if (cancelled) return;
-
       if (isPasswordRecoveryRedirect()) {
-        setUser(null);
-        setAuthScreen('reset');
-        clearAuthParamsFromUrl();
+        if (!cancelled) {
+          setUser(null);
+          setAuthScreen('reset');
+          clearAuthParamsFromUrl();
+          setBootstrapping(false);
+        }
+        return;
+      }
+
+      const synced = await syncSessionFromSupabase();
+      if (cancelled) return;
+      if (!synced) {
+        clearTokens();
         setBootstrapping(false);
         return;
       }
 
-      if (!hasTokens()) {
-        setBootstrapping(false);
-        return;
-      }
       try {
         const me = await fetchMe();
         if (cancelled) return;
         await enterApp(me);
-      } catch {
-        await logoutLocal();
+      } catch (err) {
+        console.error('[auth] bootstrap failed', err);
+        clearTokens();
         if (!cancelled) {
           setUser(null);
+          setPendingReg(null);
           setAuthScreen('login');
         }
       } finally {
