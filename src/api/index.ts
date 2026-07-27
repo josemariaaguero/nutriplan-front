@@ -27,16 +27,20 @@ function mapAuthError(message: string): string {
 
 export async function register(email: string, password: string, name: string): Promise<TokenResponse> {
   requireSupabase();
+  const emailRedirectTo = `${window.location.origin}/`;
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name } },
+    options: {
+      data: { name },
+      emailRedirectTo,
+    },
   });
   if (error) throw new ApiError(400, mapAuthError(error.message));
   if (!data.session) {
     throw new ApiError(
       400,
-      'Revisa tu email para confirmar la cuenta. Si no llega, desactiva “Confirm email” en Supabase (local).',
+      'Cuenta creada, pero falta confirmar el email. En el dashboard de Supabase desactiva “Confirm email” (Authentication → Providers → Email) mientras uses el SMTP gratis, o configura SMTP propio.',
     );
   }
   setTokens(data.session.access_token, data.session.refresh_token);
