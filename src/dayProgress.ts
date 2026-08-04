@@ -1,6 +1,6 @@
 import type { Meal } from './types';
 
-/** Hour (0–24) after which a slot counts as already eaten if the user hasn't overridden. */
+/** Hour (0–24) after which a slot typically occurs (UI hints only; not auto-eaten). */
 export const SLOT_PASS_HOUR: Record<string, number> = {
   Desayuno: 10,
   Almuerzo: 15,
@@ -35,22 +35,20 @@ export function slotHasPassed(slot: string, now = new Date()): boolean {
   return localDecimalHour(now) >= threshold;
 }
 
+function mealStatus(meal: Meal): 'planned' | 'eaten' | 'skipped' | 'replaced' {
+  return meal.status || 'planned';
+}
+
 /**
  * Meals that count toward “eaten so far”.
- * - If `overrides[i]` is set, that wins (user marked / unmarked).
- * - Otherwise: counted only after the slot’s typical time.
+ * Only explicit user/server marks count — never auto by clock time.
  */
 export function progressiveMeals(
   meals: Meal[],
   overrides: Record<number, boolean> = {},
-  now = new Date(),
+  _now = new Date(),
 ): Meal[] {
-  return meals.filter((meal, i) => {
-    if (Object.prototype.hasOwnProperty.call(overrides, i)) {
-      return overrides[i];
-    }
-    return slotHasPassed(meal.slot, now);
-  });
+  return meals.filter((meal, i) => isMealCounted(meal, i, overrides));
 }
 
 export function progressiveMacros(
@@ -65,12 +63,26 @@ export function isMealCounted(
   meal: Meal,
   index: number,
   overrides: Record<number, boolean> = {},
-  now = new Date(),
+  _now = new Date(),
 ): boolean {
+  const status = mealStatus(meal);
+  if (status === 'skipped' || status === 'replaced') return false;
+  if (status === 'eaten') return true;
   if (Object.prototype.hasOwnProperty.call(overrides, index)) {
     return overrides[index];
   }
-  return slotHasPassed(meal.slot, now);
+  return false;
+}
+
+/** Build localStorage overrides from persisted meal statuses (cache). */
+export function overridesFromMeals(meals: Meal[]): Record<number, boolean> {
+  const out: Record<number, boolean> = {};
+  meals.forEach((meal, i) => {
+    const status = mealStatus(meal);
+    if (status === 'eaten') out[i] = true;
+    else if (status === 'skipped' || status === 'replaced') out[i] = false;
+  });
+  return out;
 }
 
 function todayKey(d = new Date()): string {
@@ -109,6 +121,21 @@ export function storeEatenOverrides(overrides: Record<number, boolean>, now = ne
   } catch {
     // ignore quota
   }
+}
+
+/** Merge server meal statuses into local cache. */
+export function syncEatenOverridesFromMeals(meals: Meal[], now = new Date()): Record<number, boolean> {
+  const fromServer = overridesFromMeals(meals);
+  const local = loadEatenOverrides(now);
+  const merged = { ...local, ...fromServer };
+  // Drop local marks for slots that are explicitly planned on server
+  meals.forEach((meal, i) => {
+    if (mealStatus(meal) === 'planned' && Object.prototype.hasOwnProperty.call(fromServer, i) === false) {
+      // keep local time-override if any; server planned means no forced state
+    }
+  });
+  storeEatenOverrides(merged, now);
+  return merged;
 }
 
 const RATING_PROMPT_KEY = 'nutriplan_meal_rating_prompt';
@@ -161,4 +188,3 @@ export function markMealRatingAsked(
   map[normMealKey(mealName)] = status;
   storeRatingPromptMap(map, now);
 }
-

@@ -3,7 +3,7 @@ import type { Meal, Sport, WeekDay, Provider, SwapAlternative } from './types';
 export const BASE = { cals: 2100, p: 150, c: 225, f: 64 };
 
 export const INITIAL_SPORTS: Sport[] = [
-  { id: 'salsa', name: 'Salsa (baile)', emoji: '💃', min: 60, kcal: 360, on: true },
+  { id: 'salsa', name: 'Salsa (baile)', emoji: '💃', min: 60, kcal: 360, on: false },
   { id: 'maquinas', name: 'Gimnasio: máquinas', emoji: '🏋️', min: 50, kcal: 300, on: false },
   { id: 'cardiosuave', name: 'Cardio suave (sin impacto)', emoji: '🚴', min: 20, kcal: 130, on: false },
   { id: 'basket', name: 'Baloncesto', emoji: '🏀', min: 120, kcal: 900, on: false },

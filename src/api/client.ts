@@ -21,12 +21,46 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   skipRefresh?: boolean;
 };
 
+function formatValidationDetail(items: Array<{ loc?: unknown[]; msg?: string; type?: string }>): string {
+  const FIELD_LABELS: Record<string, string> = {
+    height: 'altura (cm)',
+    weight: 'peso (kg)',
+    target_weight: 'peso objetivo (kg)',
+    age: 'edad',
+    name: 'nombre',
+    sex: 'sexo',
+    goals: 'objetivos',
+    diet_type: 'tipo de dieta',
+    activity_level: 'nivel de actividad',
+  };
+
+  const parts = items.map(d => {
+    const loc = Array.isArray(d.loc) ? d.loc.map(String) : [];
+    const fieldKey = [...loc].reverse().find(p => p in FIELD_LABELS) || loc[loc.length - 1];
+    const label = (fieldKey && FIELD_LABELS[fieldKey]) || fieldKey || 'dato';
+    const msg = (d.msg || '').toLowerCase();
+    if (msg.includes('greater than or equal to 100') || (fieldKey === 'height' && msg.includes('greater than'))) {
+      return `La ${label} debe ser al menos 100 cm (ej. 175).`;
+    }
+    if (msg.includes('less than or equal to 250') && fieldKey === 'height') {
+      return `La ${label} debe ser como máximo 250 cm.`;
+    }
+    if (msg.includes('greater than or equal to 30') && (fieldKey === 'weight' || fieldKey === 'target_weight')) {
+      return `El ${label} debe ser al menos 30 kg.`;
+    }
+    if (d.msg) return `${label}: ${d.msg}`;
+    return null;
+  }).filter(Boolean);
+
+  return parts.join(' ') || 'Revisa los datos del formulario.';
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   let detail = res.statusText || 'Error de red';
   try {
     const data = await res.json();
     if (typeof data?.detail === 'string') detail = data.detail;
-    else if (Array.isArray(data?.detail)) detail = data.detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join(', ') || detail;
+    else if (Array.isArray(data?.detail)) detail = formatValidationDetail(data.detail);
   } catch {
     // ignore
   }

@@ -120,7 +120,14 @@ function DayStats({
 
       <SectionTitle style={{ fontSize: 16 }}>Comidas</SectionTitle>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {meals.map((m, i) => (
+        {meals.map((m, i) => {
+          const st = m.status || 'planned';
+          const statusHint =
+            st === 'skipped' ? ' · omitida'
+              : st === 'replaced' ? ' · otra cosa'
+                : st === 'eaten' ? ' · hecha'
+                  : '';
+          return (
           <button
             key={i}
             type="button"
@@ -136,13 +143,21 @@ function DayStats({
               cursor: 'pointer',
               textAlign: 'left',
               width: '100%',
+              opacity: st === 'skipped' || st === 'replaced' ? 0.75 : 1,
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: color.textMuted, textTransform: 'uppercase' }}>
-                {m.slot}
+                {m.slot}{statusHint}
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginTop: 3 }}>{m.name}</div>
+              <div style={{
+                fontSize: 15,
+                fontWeight: 700,
+                marginTop: 3,
+                textDecoration: st === 'skipped' || st === 'replaced' ? 'line-through' : undefined,
+              }}>
+                {m.name}
+              </div>
               <div style={{ fontSize: 12.5, color: color.textMuted, fontWeight: 600, marginTop: 4 }}>
                 {n(m.kcal)} kcal · P {n(m.p)} · C {n(m.c)} · G {n(m.f)}
               </div>
@@ -151,11 +166,53 @@ function DayStats({
               <path d="M1 1l6 6-6 6" stroke={color.chevron} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-        ))}
+          );
+        })}
         {meals.length === 0 && (
           <div style={{ fontSize: 13.5, color: color.textMuted, fontWeight: 600 }}>Sin comidas.</div>
         )}
       </div>
+
+      {(log.extras_snapshot || []).filter(e => (e.type || 'fruit') === 'other').length > 0 && (
+        <>
+          <SectionTitle style={{ fontSize: 16 }}>Otra cosa</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(log.extras_snapshot || [])
+              .filter(e => (e.type || 'fruit') === 'other')
+              .map(e => (
+                <div key={e.id} style={{ ...cardStyle, borderRadius: radius.lg, padding: '12px 15px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: color.textMuted, textTransform: 'uppercase' }}>
+                    {e.slot || 'Extra'}
+                  </div>
+                  <div style={{ fontSize: 14.5, fontWeight: 700, marginTop: 3 }}>{e.name}</div>
+                  <div style={{ fontSize: 12.5, color: color.textMuted, fontWeight: 600, marginTop: 4 }}>
+                    {(Number(e.kcal) || 0) > 0
+                      ? `~${Math.round(Number(e.kcal))} kcal · P ${n(Number(e.p) || 0)} · C ${n(Number(e.c) || 0)} · G ${n(Number(e.f) || 0)}`
+                      : 'Sin estimación'}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </>
+      )}
+
+      {(log.extras_snapshot || []).filter(e => (e.type || 'fruit') === 'fruit').length > 0 && (
+        <>
+          <SectionTitle style={{ fontSize: 16 }}>Frutas</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(log.extras_snapshot || [])
+              .filter(e => (e.type || 'fruit') === 'fruit')
+              .map(e => (
+                <div key={e.id} style={{ ...cardStyle, borderRadius: radius.lg, padding: '12px 15px' }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 700 }}>{e.name}</div>
+                  <div style={{ fontSize: 12.5, color: color.textMuted, fontWeight: 600, marginTop: 4 }}>
+                    {Math.round(Number(e.g) || 0)} g · {Math.round(Number(e.kcal) || 0)} kcal
+                  </div>
+                </div>
+              ))}
+          </div>
+        </>
+      )}
 
       {sports.length > 0 && (
         <>

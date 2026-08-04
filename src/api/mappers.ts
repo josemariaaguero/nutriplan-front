@@ -1,6 +1,8 @@
 import type { Ingredient, Meal, Sport, User } from '../types';
-import type { DayPlanApi, FruitLogApi, ProfileApi, SportApi, TokenResponse } from './types';
+import type { DayPlanApi, ExtraLogApi, FruitLogApi, ProfileApi, SportApi, TokenResponse } from './types';
 import { withMealImage } from '../mealImages';
+import { syncEatenOverridesFromMeals } from '../dayProgress';
+import { storeTodayOtherExtras } from '../dayExtras';
 import { scaleFruitMacros, storeTodayFruits, type LoggedFruit } from '../fruits';
 
 export function profileToUser(p: ProfileApi): User {
@@ -80,6 +82,7 @@ export function mealFromApi(m: Meal): Meal {
     steps: m.steps || [],
     external_recipe_id: m.external_recipe_id ?? null,
     recipe_source: m.recipe_source ?? null,
+    status: m.status || 'planned',
   });
 }
 
@@ -123,14 +126,20 @@ export function applyDayPlan(day: DayPlanApi): {
   meals: Meal[];
   sports: Sport[];
   macros: DayPlanApi['macros'];
+  extras: ExtraLogApi[];
 } {
   if (Array.isArray(day.fruits)) {
     storeTodayFruits(day.fruits.map(fruitFromApi));
   }
+  const meals = day.meals.map(mealFromApi);
+  syncEatenOverridesFromMeals(meals);
+  const extras = Array.isArray(day.extras) ? day.extras : [];
+  storeTodayOtherExtras(extras.filter(e => (e.type || 'fruit') === 'other'));
   return {
-    meals: day.meals.map(mealFromApi),
+    meals,
     sports: day.sports.map(sportFromApi),
     macros: day.macros,
+    extras,
   };
 }
 

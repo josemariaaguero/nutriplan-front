@@ -69,6 +69,7 @@ export interface DayPlanApi {
   macros: MacrosTodayApi;
   adjustment_warning?: string | null;
   fruits?: FruitLogApi[];
+  extras?: ExtraLogApi[];
 }
 
 export interface FruitLogApi {
@@ -81,8 +82,27 @@ export interface FruitLogApi {
   p?: number;
   c?: number;
   f?: number;
+  type?: 'fruit' | 'other';
   per100?: { kcal: number; p: number; c: number; f: number } | null;
   per_100g?: { kcal: number; p: number; c: number; f: number } | null;
+}
+
+export interface ExtraLogApi {
+  id: string;
+  type?: 'fruit' | 'other';
+  name: string;
+  g?: number;
+  kcal?: number;
+  p?: number;
+  c?: number;
+  f?: number;
+  kindId?: string;
+  kind_id?: string;
+  per100?: { kcal: number; p: number; c: number; f: number } | null;
+  per_100g?: { kcal: number; p: number; c: number; f: number } | null;
+  slot?: string | null;
+  mealIndex?: number | null;
+  meal_index?: number | null;
 }
 
 export interface OnboardingPayload {

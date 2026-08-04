@@ -49,6 +49,7 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
   const [allergies, setAllergies] = useState<string[]>([]);
   const [activityLevel, setActivityLevel] = useState('');
   const [loading, setLoading] = useState(false);
+  const [localError, setLocalError] = useState('');
 
   function toggleItem(list: string[], setList: (v: string[]) => void, item: string) {
     setList(list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
@@ -61,20 +62,79 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
     return true;
   }
 
+  /** Accept cm (100–250) or meters (1.0–2.5) typed by mistake. */
+  function parseHeightCm(raw: string): number | null {
+    const cleaned = raw.trim().replace(',', '.');
+    const n = Number(cleaned);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    if (n >= 100 && n <= 250) return Math.round(n);
+    if (n >= 1 && n <= 2.5) return Math.round(n * 100);
+    return null;
+  }
+
+  function parseWeightKg(raw: string): number | null {
+    const cleaned = raw.trim().replace(',', '.');
+    const n = Number(cleaned);
+    if (!Number.isFinite(n) || n < 30 || n > 300) return null;
+    return Math.round(n * 10) / 10;
+  }
+
+  function validatePhysical(): string | null {
+    const ageN = parseInt(age, 10);
+    if (!Number.isFinite(ageN) || ageN < 10 || ageN > 120) {
+      return 'La edad debe estar entre 10 y 120 años.';
+    }
+    if (!sex) return 'Selecciona el sexo biológico.';
+    if (parseHeightCm(height) == null) {
+      return 'La altura debe estar entre 100 y 250 cm (ej. 175).';
+    }
+    if (parseWeightKg(weight) == null) {
+      return 'El peso debe estar entre 30 y 300 kg (ej. 72.5).';
+    }
+    return null;
+  }
+
   function advance() {
+    setLocalError('');
+    if (step === 1) {
+      const err = validatePhysical();
+      if (err) {
+        setLocalError(err);
+        return;
+      }
+    }
     if (step < TOTAL_STEPS - 1) setStep(s => s + 1);
     else void finish();
   }
 
   async function finish() {
-    const currentWeight = parseFloat(weight) || 70;
+    const physicalErr = validatePhysical();
+    if (physicalErr) {
+      setLocalError(physicalErr);
+      setStep(1);
+      return;
+    }
+    if (goals.length === 0 || !dietType) {
+      setLocalError('Elige al menos un objetivo y un tipo de dieta.');
+      setStep(2);
+      return;
+    }
+    if (!activityLevel) {
+      setLocalError('Selecciona tu nivel de actividad.');
+      setStep(3);
+      return;
+    }
+
+    const heightCm = parseHeightCm(height)!;
+    const currentWeight = parseWeightKg(weight)!;
     setLoading(true);
+    setLocalError('');
     try {
       await onComplete({
         name, email,
-        age: parseInt(age) || 30,
+        age: parseInt(age, 10),
         sex: sex || 'female',
-        height: parseInt(height) || 170,
+        height: heightCm,
         weight: currentWeight,
         targetWeight: currentWeight,
         goals,
@@ -167,18 +227,21 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#4a4038', marginBottom: 7 }}>Edad</div>
-                <input type="number" value={age} onChange={e => setAge(e.target.value)}
+                <input type="number" inputMode="numeric" min={10} max={120} value={age}
+                  onChange={e => { setAge(e.target.value); setLocalError(''); }}
                   placeholder="31" style={inputStyle} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#4a4038', marginBottom: 7 }}>Altura (cm)</div>
-                <input type="number" value={height} onChange={e => setHeight(e.target.value)}
+                <input type="number" inputMode="decimal" min={100} max={250} step={1} value={height}
+                  onChange={e => { setHeight(e.target.value); setLocalError(''); }}
                   placeholder="175" style={inputStyle} />
               </div>
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#4a4038', marginBottom: 7 }}>Peso actual (kg)</div>
-              <input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)}
+              <input type="number" inputMode="decimal" min={30} max={300} step="0.1" value={weight}
+                onChange={e => { setWeight(e.target.value); setLocalError(''); }}
                 placeholder="82" style={inputStyle} />
             </div>
           </div>
@@ -262,8 +325,10 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
 
       <div style={{ flex: 1 }} />
 
-      {externalError && (
-        <div style={{ marginTop: 16, fontSize: 13, color: '#e0512c', fontWeight: 600 }}>{externalError}</div>
+      {(localError || externalError) && (
+        <div style={{ marginTop: 16, fontSize: 13, color: '#e0512c', fontWeight: 600 }}>
+          {localError || externalError}
+        </div>
       )}
       <div style={{ marginTop: 32, display: 'flex', gap: 10 }}>
         {step > 0 && (

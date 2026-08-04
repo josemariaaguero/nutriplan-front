@@ -145,6 +145,30 @@ export async function updateTodayFruits(
   return applyDayPlan(day);
 }
 
+export type MealStatus = 'planned' | 'eaten' | 'skipped' | 'replaced';
+
+export type OtherFoodEstimate = {
+  name?: string;
+  kcal?: number;
+  p?: number;
+  c?: number;
+  f?: number;
+};
+
+export async function updateMealStatus(
+  mealIndex: number,
+  status: MealStatus,
+  estimate?: OtherFoodEstimate | null,
+): Promise<ReturnType<typeof applyDayPlan>> {
+  const body: { status: MealStatus; estimate?: OtherFoodEstimate } = { status };
+  if (estimate != null) body.estimate = estimate;
+  const day = await apiRequest<DayPlanApi>(`/api/v1/today/meals/${mealIndex}/status`, {
+    method: 'PATCH',
+    body,
+  });
+  return applyDayPlan(day);
+}
+
 export async function updateTodaySports(
   sports: Sport[],
   lockedMealIndices: number[] = [],
@@ -337,6 +361,7 @@ export interface DailyLogApi {
   sports_burn_kcal: number;
   meals_snapshot: Meal[];
   sports_snapshot: { id: string; name: string; emoji: string; min: number; kcal: number; on: boolean }[];
+  extras_snapshot?: import('./types').ExtraLogApi[];
   notes: string | null;
   archived_at: string;
 }

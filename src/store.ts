@@ -75,6 +75,7 @@ export interface AppActions {
   goWeekSport: (dayIdx: number) => void;
   goSwapDefault: () => void;
   openHistory: (date?: string, back?: 'hoy' | 'perfil') => void;
+  applyTodayPlan: (plan: { meals: Meal[]; sports: Sport[]; macros: DayMacros }) => void;
   updateUser: (u: User) => void | Promise<void>;
   logout: () => void;
   generateWeek: () => Promise<{ ok: true; source: string }>;

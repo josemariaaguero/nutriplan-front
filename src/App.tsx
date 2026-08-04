@@ -224,12 +224,35 @@ function App() {
     const catalog = catalogOverride?.length
       ? catalogOverride
       : (activityCatalog.length ? activityCatalog : INITIAL_SPORTS.map(s => ({ ...s, on: false })));
-    const merged = mergeDayWithCatalog(plan.sports, catalog);
+    let merged = mergeDayWithCatalog(plan.sports, catalog);
+    // One-time: clear legacy seed that left "Salsa" on by default.
+    let persistClearedSalsa = false;
+    try {
+      if (!localStorage.getItem('nutriplan_cleared_default_salsa_v1')) {
+        localStorage.setItem('nutriplan_cleared_default_salsa_v1', '1');
+        const next = merged.map(s => (s.id === 'salsa' ? { ...s, on: false } : s));
+        persistClearedSalsa = next.some((s, i) => s.on !== merged[i].on);
+        merged = next;
+      }
+    } catch {
+      // ignore quota / private mode
+    }
     setSports(merged);
     setDayMacros(plan.macros);
     const todayIdx = currentWeekDayIndex();
     setWeekSports(prev => withWeekDaySports(prev, todayIdx, merged));
+    if (persistClearedSalsa) {
+      queueMicrotask(() => {
+        void updateTodaySports(merged, []).catch(() => {
+          // keep local off even if sync fails
+        });
+      });
+    }
   }
+
+  const applyTodayPlan = useCallback((plan: { meals: Meal[]; sports: Sport[]; macros: DayMacros }) => {
+    applyPlan(plan);
+  }, [activityCatalog]);
 
   async function hydrateSportCatalog(): Promise<Sport[]> {
     try {
@@ -927,8 +950,8 @@ function App() {
     connectProvider, disconnectProvider, syncHealthProviders, refreshHealthConnections,
     setSelectedDay,
     openRecipe, openWeekRecipe, openHistoryRecipe, openSwap, openSwapMeal, applyMealSwap, applyUserRecipeSwap, applyIngredientSwap,
-    goSport, goWeekSport, goSwapDefault, openHistory, updateUser, logout, generateWeek,
-  }), [go, toggleSport, setSportDuration, setSportActivityType, addCustomSport, updateSportActivity, removeCustomSport, connectProvider, disconnectProvider, syncHealthProviders, refreshHealthConnections, openRecipe, openWeekRecipe, openHistoryRecipe, openSwap, openSwapMeal, applyMealSwap, applyUserRecipeSwap, applyIngredientSwap, goSport, goWeekSport, goSwapDefault, openHistory, updateUser, logout, generateWeek]);
+    goSport, goWeekSport, goSwapDefault, openHistory, applyTodayPlan, updateUser, logout, generateWeek,
+  }), [go, toggleSport, setSportDuration, setSportActivityType, addCustomSport, updateSportActivity, removeCustomSport, connectProvider, disconnectProvider, syncHealthProviders, refreshHealthConnections, openRecipe, openWeekRecipe, openHistoryRecipe, openSwap, openSwapMeal, applyMealSwap, applyUserRecipeSwap, applyIngredientSwap, goSport, goWeekSport, goSwapDefault, openHistory, applyTodayPlan, updateUser, logout, generateWeek]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scrollRef = useCallback((node: HTMLDivElement | null) => {

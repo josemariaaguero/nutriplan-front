@@ -24,6 +24,8 @@ export interface Meal {
   steps: string[];
   external_recipe_id?: string | null;
   recipe_source?: string | null;
+  /** Server-persisted slot state for skip / replaced / eaten. */
+  status?: 'planned' | 'eaten' | 'skipped' | 'replaced';
 }
 
 export interface Sport {
