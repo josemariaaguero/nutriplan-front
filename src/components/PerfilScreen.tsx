@@ -6,6 +6,13 @@ import {
   saveNotificationPrefs,
   type NotificationPrefs,
 } from '../notificationPrefs';
+import {
+  DEFAULT_MEAL_REPEAT_POLICY,
+  MEAL_REPEAT_OPTIONS,
+  mealRepeatLabel,
+  normalizeMealRepeatPolicy,
+  type MealRepeatPolicy,
+} from '../mealRepeat';
 import PhoneSheet from './PhoneSheet';
 import { color, font, goalColors, radius, cardStyle, primaryBtnStyle, secondaryBtnStyle, gradient, shadow, chipStyle, inputStyle } from '../theme';
 import { Avatar, IconLeaf, ScreenPage, SectionTitle } from './ui';
@@ -31,6 +38,7 @@ function planConfigChanged(prev: User, next: User): boolean {
     prev.weight !== next.weight
     || prev.dietType !== next.dietType
     || prev.activityLevel !== next.activityLevel
+    || normalizeMealRepeatPolicy(prev.mealRepeatPolicy) !== normalizeMealRepeatPolicy(next.mealRepeatPolicy)
     || sortedKey(prev.goals) !== sortedKey(next.goals)
     || sortedKey(prev.allergies) !== sortedKey(next.allergies)
   );
@@ -149,6 +157,9 @@ function EditPersonalPanel({ user, onSave, onClose }: { user: User; onSave: (u: 
   const [weight, setWeight] = useState(user.weight ? String(user.weight) : '');
   const [dietType, setDietType] = useState(user.dietType);
   const [activityLevel, setActivityLevel] = useState(user.activityLevel);
+  const [mealRepeatPolicy, setMealRepeatPolicy] = useState<MealRepeatPolicy>(
+    normalizeMealRepeatPolicy(user.mealRepeatPolicy ?? DEFAULT_MEAL_REPEAT_POLICY),
+  );
   const [goals, setGoals] = useState<string[]>(user.goals);
 
   function toggleGoal(g: string) {
@@ -166,6 +177,7 @@ function EditPersonalPanel({ user, onSave, onClose }: { user: User; onSave: (u: 
       targetWeight: w,
       dietType,
       activityLevel,
+      mealRepeatPolicy,
       goals,
     });
   }
@@ -219,6 +231,35 @@ function EditPersonalPanel({ user, onSave, onClose }: { user: User; onSave: (u: 
                 {dietType === d && '✓ '}{d}
               </span>
             ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#9a9087', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 8 }}>
+            ¿Repetir comidas en la semana?
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {MEAL_REPEAT_OPTIONS.map(opt => {
+              const sel = mealRepeatPolicy === opt.id;
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => setMealRepeatPolicy(opt.id)}
+                  style={{
+                    padding: '11px 14px', borderRadius: 14, cursor: 'pointer',
+                    border: sel ? '2px solid #ff6a3d' : '2px solid #f0e8df',
+                    background: sel ? '#fff4f0' : '#fff',
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 600, color: sel ? '#e0512c' : '#2a2520' }}>
+                    {sel && '✓ '}{opt.label}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#9a9087', fontWeight: 500, marginTop: 2, lineHeight: 1.35 }}>
+                    {opt.desc}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -492,6 +533,7 @@ export default function PerfilScreen({ onShowLegal }: { onShowLegal?: () => void
           { label: 'Edad', value: user.age ? `${user.age} años` : '—' },
           { label: 'Nivel de actividad', value: user.activityLevel || '—' },
           { label: 'Tipo de dieta', value: user.dietType || '—' },
+          { label: 'Repetición de comidas', value: mealRepeatLabel(user.mealRepeatPolicy) },
         ].map((item, i, arr) => (
           <div key={i} style={{
             display: 'flex', alignItems: 'center', padding: '14px 16px',

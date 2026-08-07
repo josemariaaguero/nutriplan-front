@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { chipStyle, inputStyle, color, font, gradient, radius, primaryBtnStyle, secondaryBtnStyle } from '../theme';
 import { IconLeaf } from './ui';
 import { useShellMode } from '../shellContext';
+import {
+  DEFAULT_MEAL_REPEAT_POLICY,
+  MEAL_REPEAT_OPTIONS,
+  type MealRepeatPolicy,
+} from '../mealRepeat';
 
 interface OnboardingResult {
   name: string;
@@ -15,6 +20,7 @@ interface OnboardingResult {
   dietType: string;
   allergies: string[];
   activityLevel: string;
+  mealRepeatPolicy: MealRepeatPolicy;
   healthProviders: Record<string, boolean>;
 }
 
@@ -47,6 +53,7 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
   const [goals, setGoals] = useState<string[]>([]);
   const [dietType, setDietType] = useState('');
   const [allergies, setAllergies] = useState<string[]>([]);
+  const [mealRepeatPolicy, setMealRepeatPolicy] = useState<MealRepeatPolicy>(DEFAULT_MEAL_REPEAT_POLICY);
   const [activityLevel, setActivityLevel] = useState('');
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -141,6 +148,7 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
         dietType: dietType || 'Omnívora',
         allergies,
         activityLevel: activityLevel || 'Moderadamente activo',
+        mealRepeatPolicy,
         healthProviders: {},
       });
     } finally {
@@ -285,6 +293,33 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
                 {allergies.includes(a) && '✓ '}{a}
               </span>
             ))}
+          </div>
+
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#9a9087', textTransform: 'uppercase', letterSpacing: 0.4, margin: '24px 0 10px' }}>
+            ¿Repetir comidas en la semana?
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {MEAL_REPEAT_OPTIONS.map(opt => {
+              const sel = mealRepeatPolicy === opt.id;
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => setMealRepeatPolicy(opt.id)}
+                  style={{
+                    background: sel ? '#fff4f0' : '#fff', borderRadius: 18,
+                    padding: '14px 16px', cursor: 'pointer',
+                    border: sel ? '2px solid #ff6a3d' : '2px solid #f0e8df',
+                  }}
+                >
+                  <div style={{ fontSize: 14.5, fontWeight: 700, color: sel ? '#e0512c' : '#2a2520' }}>
+                    {sel && '✓ '}{opt.label}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: '#9a9087', fontWeight: 500, marginTop: 2, lineHeight: 1.4 }}>
+                    {opt.desc}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

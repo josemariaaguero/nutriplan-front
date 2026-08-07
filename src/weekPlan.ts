@@ -154,6 +154,8 @@ function weekHasEnglishTitles(meals: string[][]): boolean {
 export type WeekGenOpts = {
   dietType?: string | null;
   allergies?: string[] | null;
+  /** When 'allow', the same dish may appear more than once in the week. */
+  mealRepeatPolicy?: 'avoid' | 'allow' | null;
 };
 
 /** Build a fresh 7×4 week from local alternatives (Spanish, no API). */
@@ -163,6 +165,8 @@ export function generateLocalWeekMeals(opts?: WeekGenOpts | string | null): stri
     ? (opts as string | null | undefined)
     : opts.dietType;
   const allergies = typeof opts === 'object' && opts ? opts.allergies : undefined;
+  const mealRepeatPolicy = typeof opts === 'object' && opts ? opts.mealRepeatPolicy : undefined;
+  const allowRepeats = mealRepeatPolicy === 'allow';
 
   const used = new Set<string>();
   const preferAnimal = !dietType || dietType === 'Omnívora' || dietType === 'Flexitariana';
@@ -183,6 +187,9 @@ export function generateLocalWeekMeals(opts?: WeekGenOpts | string | null): stri
     }
 
     const start = (dayIdx * 3 + slotIdx * 5 + Math.floor(Math.random() * candidates.length)) % candidates.length;
+    if (allowRepeats) {
+      return candidates[start % candidates.length];
+    }
     for (let i = 0; i < candidates.length; i++) {
       const name = candidates[(start + i) % candidates.length];
       if (!used.has(name)) {
@@ -210,7 +217,8 @@ export function mealPlanToWeekMeals(
     ? (opts as string | null | undefined)
     : opts.dietType;
   const allergies = typeof opts === 'object' && opts ? opts.allergies : undefined;
-  const local = generateLocalWeekMeals({ dietType, allergies });
+  const mealRepeatPolicy = typeof opts === 'object' && opts ? opts.mealRepeatPolicy : undefined;
+  const local = generateLocalWeekMeals({ dietType, allergies, mealRepeatPolicy });
 
   if (plan.source !== 'local') {
     return local;

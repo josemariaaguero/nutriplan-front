@@ -4,6 +4,7 @@ import { withMealImage } from '../mealImages';
 import { syncEatenOverridesFromMeals } from '../dayProgress';
 import { storeTodayOtherExtras } from '../dayExtras';
 import { scaleFruitMacros, storeTodayFruits, type LoggedFruit } from '../fruits';
+import { normalizeMealRepeatPolicy } from '../mealRepeat';
 
 export function profileToUser(p: ProfileApi): User {
   return {
@@ -18,6 +19,7 @@ export function profileToUser(p: ProfileApi): User {
     dietType: p.diet_type,
     allergies: p.allergies || [],
     activityLevel: p.activity_level,
+    mealRepeatPolicy: normalizeMealRepeatPolicy(p.meal_repeat_policy),
     onboardingComplete: p.onboarding_complete,
     isSuperadmin: Boolean(p.is_superadmin),
   };
@@ -35,6 +37,7 @@ export function userToProfileUpdate(u: User) {
     diet_type: u.dietType,
     allergies: u.allergies,
     activity_level: u.activityLevel,
+    meal_repeat_policy: normalizeMealRepeatPolicy(u.mealRepeatPolicy),
   };
 }
 
