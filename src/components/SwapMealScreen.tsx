@@ -9,6 +9,7 @@ import { fetchMyRecipes, type UserRecipeApi } from '../api';
 import { color, font, cardStyle, radius } from '../theme';
 import { EmptyState, Notice, ScreenHeader, ScreenPage, SectionTitle } from './ui';
 import type { Meal } from '../types';
+import { mealFitsAllergies, mealFitsDiet } from '../weekPlan';
 
 function MealPreview({
   meal,
@@ -219,7 +220,7 @@ function MealPreview({
 }
 
 export default function SwapMealScreen() {
-  const { swapMealCtx, currentMeals } = useAppState();
+  const { swapMealCtx, currentMeals, user, weekMeals } = useAppState();
   const { go, applyMealSwap, applyUserRecipeSwap } = useAppActions();
   const [previewMeal, setPreviewMeal] = useState<Meal | null>(null);
   const [myRecipes, setMyRecipes] = useState<UserRecipeApi[]>([]);
@@ -235,7 +236,21 @@ export default function SwapMealScreen() {
 
   const { slotIdx, source } = swapMealCtx;
   const slotName = WEEK_MEAL_SLOTS[slotIdx];
-  const alternatives = (MEAL_ALTERNATIVES[slotName] || []).map(withMealImage);
+  const dietType = user?.dietType;
+  const allergies = user?.allergies;
+  const allowRepeats = user?.mealRepeatPolicy === 'allow';
+  const usedTitles = new Set((weekMeals || []).flat().filter(Boolean));
+  const currentName = source === 'hoy' ? currentMeals[slotIdx]?.name : null;
+
+  const alternatives = (MEAL_ALTERNATIVES[slotName] || [])
+    .filter(m => mealFitsDiet(m.name, dietType) && mealFitsAllergies(m.name, allergies))
+    .sort((a, b) => {
+      if (allowRepeats) return 0;
+      const aUsed = usedTitles.has(a.name) && a.name !== currentName ? 1 : 0;
+      const bUsed = usedTitles.has(b.name) && b.name !== currentName ? 1 : 0;
+      return aUsed - bUsed;
+    })
+    .map(withMealImage);
   const currentMeal = source === 'hoy' ? currentMeals[slotIdx] : null;
   const slotRecipes = [...myRecipes].sort((a, b) => {
     const aMatch = a.preferred_slot === slotName ? 0 : 1;

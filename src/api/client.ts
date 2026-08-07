@@ -32,6 +32,7 @@ function formatValidationDetail(items: Array<{ loc?: unknown[]; msg?: string; ty
     goals: 'objetivos',
     diet_type: 'tipo de dieta',
     activity_level: 'nivel de actividad',
+    meal_repeat_policy: 'repetición de comidas',
   };
 
   const parts = items.map(d => {

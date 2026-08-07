@@ -85,6 +85,10 @@ export interface SwapAlternative {
   f: number;
 }
 
+import type { MealRepeatPolicy } from './mealRepeat';
+
+export type { MealRepeatPolicy };
+
 export interface User {
   name: string;
   email: string;
@@ -97,6 +101,8 @@ export interface User {
   dietType: string;
   allergies: string[];
   activityLevel: string;
+  /** Weekly plan variety: avoid repeats (default) or allow them. */
+  mealRepeatPolicy?: MealRepeatPolicy;
   onboardingComplete?: boolean;
   isSuperadmin?: boolean;
 }

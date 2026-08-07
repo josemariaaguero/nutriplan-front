@@ -465,6 +465,7 @@ function App() {
     dietType: string;
     allergies: string[];
     activityLevel: string;
+    mealRepeatPolicy: 'avoid' | 'allow';
     healthProviders: Record<string, boolean>;
   }) {
     setAuthError('');
@@ -480,6 +481,7 @@ function App() {
         diet_type: payload.dietType,
         allergies: payload.allergies,
         activity_level: payload.activityLevel,
+        meal_repeat_policy: payload.mealRepeatPolicy,
         health_providers: payload.healthProviders,
       });
       await enterApp(u);
@@ -893,7 +895,11 @@ function App() {
 
   const generateWeek = useCallback(async () => {
     const target = dayMacros?.targets.cals ?? 2000;
-    const opts = { dietType: user?.dietType, allergies: user?.allergies };
+    const opts = {
+      dietType: user?.dietType,
+      allergies: user?.allergies,
+      mealRepeatPolicy: user?.mealRepeatPolicy,
+    };
     try {
       const plan = await generateMealPlan(target);
       const next = mealPlanToWeekMeals(plan, opts);
@@ -915,7 +921,7 @@ function App() {
       setSelectedDay(0);
       return { ok: true as const, source: 'local' };
     }
-  }, [dayMacros, user?.dietType, user?.allergies]);
+  }, [dayMacros, user?.dietType, user?.allergies, user?.mealRepeatPolicy]);
 
   const logout = useCallback(() => {
     void logoutLocal();
