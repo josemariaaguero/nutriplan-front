@@ -19,6 +19,7 @@ export interface ProfileApi {
   allergies: string[];
   activity_level: string;
   meal_repeat_policy?: string;
+  meal_repeat_slots?: string[];
   health_providers: Record<string, boolean>;
   onboarding_complete: boolean;
   is_superadmin?: boolean;
@@ -118,6 +119,7 @@ export interface OnboardingPayload {
   allergies: string[];
   activity_level: string;
   meal_repeat_policy?: string;
+  meal_repeat_slots?: string[];
   health_providers?: Record<string, boolean>;
 }
 

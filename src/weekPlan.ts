@@ -1,6 +1,13 @@
 import { MEAL_ALTERNATIVES, WEEK_MEALS, WEEK_MEAL_SLOTS } from './data';
 import type { MealPlanGenerateApi } from './api';
 import type { Meal, Sport } from './types';
+import {
+  mealRepeatBucket,
+  normalizeMealRepeatPrefs,
+  slotUsesRepeatPattern,
+  type MealRepeatFrequency,
+  type MealRepeatPrefs,
+} from './mealRepeat';
 
 const WEEK_STORAGE_KEY = 'nutriplan_week_meals';
 const WEEK_OVERRIDES_KEY = 'nutriplan_week_meal_overrides';
@@ -74,11 +81,25 @@ export function applyLocalIngredientSwap(
 const MEAT_FISH = [
   'pollo', 'pavo', 'ternera', 'cerdo', 'carne', 'jamón', 'jamon',
   'salmón', 'salmon', 'atún', 'atun', 'pescado', 'merluza', 'bacalao',
-  'lubina', 'sardina', 'gambas', 'marisco',
+  'lubina', 'sardina', 'gambas', 'marisco', 'chorizo', 'bacon', 'lomo',
+  'cordero', 'pato', 'calamar', 'pulpo', 'mejillón', 'mejillon', 'anchoa',
+  'langostino', 'camarón', 'camaron', 'pechuga', 'solomillo', 'filete',
+  'embutido', 'fiambre', 'costilla',
+  'bonito', 'caballa', 'trucha', 'sepia', 'rape', 'boquerón', 'boqueron',
 ];
+
+/** Animal / dairy terms that exclude a meal from vegan diets. */
 const ANIMAL_EXTRA = [
-  'huevo', 'yogur', 'yogurt', 'quark', 'queso', 'skyr', 'ricotta',
-  'leche', 'miel', 'mantequilla', 'clara',
+  'huevo', 'huevos', 'yogur', 'yogurt', 'quark', 'queso', 'skyr', 'ricotta',
+  'leche', 'miel', 'mantequilla', 'clara', 'nata', 'parmesano', 'mozzarella',
+  'feta', 'whey', 'caseína', 'caseina', 'gelatina',
+];
+
+/** Dish names that imply eggs in Spanish cooking even without "huevo" in the title. */
+const EGG_DISH_TOKENS = ['tortilla', 'gofre', 'pancake', 'pancakes', 'quiche'];
+
+const DAIRY_TOKENS = [
+  'yogur', 'yogurt', 'quark', 'queso', 'skyr', 'ricotta', 'leche', 'mantequilla', 'nata',
 ];
 
 const ALLERGY_TOKENS: Record<string, string[]> = {
@@ -91,35 +112,131 @@ const ALLERGY_TOKENS: Record<string, string[]> = {
   Cacahuetes: ['cacahuete', 'maní', 'mani'],
 };
 
-function titleHas(title: string, tokens: string[]): boolean {
-  const t = title.toLowerCase();
-  return tokens.some(tok => t.includes(tok));
+const PLANT_MILK_RE = /leche\s+de\s+(avena|coco|soja|almendra|arroz|avellana|c[aá][nñ]amo|nueces)/i;
+
+export type MealDietText = {
+  name?: string | null;
+  ingredients?: Array<{ n?: string | null } | string> | null;
+};
+
+type DietKind =
+  | 'omni'
+  | 'flexi'
+  | 'vegetarian'
+  | 'vegan'
+  | 'dairy_free'
+  | 'gluten_free'
+  | 'unknown';
+
+/** Lowercase + strip accents for tolerant diet / token matching. */
+function foldText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
-export function mealFitsDiet(title: string, dietType?: string | null): boolean {
-  if (!dietType || dietType === 'Omnívora' || dietType === 'Flexitariana') return true;
-  if (dietType === 'Vegetariana') return !titleHas(title, MEAT_FISH);
-  if (dietType === 'Vegana') return !titleHas(title, [...MEAT_FISH, ...ANIMAL_EXTRA]);
-  if (dietType === 'Sin lácteos') {
-    return !titleHas(title, ['yogur', 'yogurt', 'quark', 'queso', 'skyr', 'ricotta', 'leche', 'mantequilla']);
+function dietKind(dietType?: string | null): DietKind {
+  const d = foldText(dietType || '');
+  if (!d) return 'unknown';
+  if (d.startsWith('omniv')) return 'omni';
+  if (d.startsWith('flexi')) return 'flexi';
+  if (d.startsWith('vegan') || d === 'vegana' || d === 'vegano') return 'vegan';
+  // vegetariana / vegetariano / vegetarian
+  if (d.startsWith('vegetar')) return 'vegetarian';
+  if (d.includes('lact') || d.includes('dairy')) return 'dairy_free';
+  if (d.includes('gluten')) return 'gluten_free';
+  return 'unknown';
+}
+
+function ingredientName(ing: { n?: string | null } | string): string {
+  return (typeof ing === 'string' ? ing : ing?.n || '').trim();
+}
+
+/** Collect searchable text from title + ingredient names. */
+function mealSearchTexts(title: string, ingredients?: MealDietText['ingredients']): string[] {
+  const texts = [title];
+  if (ingredients?.length) {
+    for (const ing of ingredients) {
+      const n = ingredientName(ing);
+      if (n) texts.push(n);
+    }
   }
-  if (dietType === 'Sin gluten') {
-    return !titleHas(title, ['espelta', 'centeno', 'pasta', 'pan', 'trigo', 'gofre', 'pancakes', 'quiche']);
+  return texts;
+}
+
+/**
+ * True if `token` appears in text, with plant-milk exception for dairy "leche".
+ * "Leche de avena/coco/…" must not count as animal dairy.
+ */
+function textHasToken(text: string, token: string): boolean {
+  const t = foldText(text);
+  const tok = foldText(token);
+  if (!tok || !t.includes(tok)) return false;
+  if (tok === 'leche' && PLANT_MILK_RE.test(text)) return false;
+  return true;
+}
+
+function anyTextHas(texts: string[], tokens: string[]): boolean {
+  return texts.some(text => tokens.some(tok => textHasToken(text, tok)));
+}
+
+function titleHas(title: string, tokens: string[]): boolean {
+  return tokens.some(tok => textHasToken(title, tok));
+}
+
+export function mealFitsDiet(
+  title: string,
+  dietType?: string | null,
+  ingredients?: MealDietText['ingredients'],
+): boolean {
+  const kind = dietKind(dietType);
+  if (kind === 'omni' || kind === 'flexi' || kind === 'unknown') return true;
+
+  const texts = mealSearchTexts(title, ingredients);
+
+  if (kind === 'vegetarian') {
+    return !anyTextHas(texts, MEAT_FISH);
+  }
+  if (kind === 'vegan') {
+    if (anyTextHas(texts, [...MEAT_FISH, ...ANIMAL_EXTRA])) return false;
+    // Titles like "Tortilla de verduras" / "Gofre…" imply eggs even if the word huevo is only in ingredients
+    // (ingredients are also checked above; this covers title-only week generation).
+    if (anyTextHas([title], EGG_DISH_TOKENS)) return false;
+    return true;
+  }
+  if (kind === 'dairy_free') {
+    return !anyTextHas(texts, DAIRY_TOKENS);
+  }
+  if (kind === 'gluten_free') {
+    return !anyTextHas(texts, ['espelta', 'centeno', 'pasta', 'pan', 'trigo', 'gofre', 'pancakes', 'quiche']);
   }
   return true;
 }
 
-export function mealFitsAllergies(title: string, allergies?: string[] | null): boolean {
+export function mealFitsAllergies(
+  title: string,
+  allergies?: string[] | null,
+  ingredients?: MealDietText['ingredients'],
+): boolean {
   if (!allergies?.length) return true;
+  const texts = mealSearchTexts(title, ingredients);
   for (const a of allergies) {
     const tokens = ALLERGY_TOKENS[a];
-    if (tokens && titleHas(title, tokens)) return false;
+    if (tokens && anyTextHas(texts, tokens)) return false;
   }
   return true;
 }
 
-function mealAllowed(title: string, dietType?: string | null, allergies?: string[] | null): boolean {
-  return mealFitsDiet(title, dietType) && mealFitsAllergies(title, allergies);
+function mealAllowed(
+  title: string,
+  dietType?: string | null,
+  allergies?: string[] | null,
+  ingredients?: MealDietText['ingredients'],
+): boolean {
+  return mealFitsDiet(title, dietType, ingredients)
+    && mealFitsAllergies(title, allergies, ingredients);
 }
 
 function isOmnivoreProteinMeal(title: string): boolean {
@@ -154,8 +271,9 @@ function weekHasEnglishTitles(meals: string[][]): boolean {
 export type WeekGenOpts = {
   dietType?: string | null;
   allergies?: string[] | null;
-  /** When 'allow', the same dish may appear more than once in the week. */
-  mealRepeatPolicy?: 'avoid' | 'allow' | null;
+  mealRepeatPolicy?: MealRepeatFrequency | string | null;
+  mealRepeatSlots?: string[] | null;
+  mealRepeatPrefs?: MealRepeatPrefs | null;
 };
 
 /** Build a fresh 7×4 week from local alternatives (Spanish, no API). */
@@ -165,39 +283,67 @@ export function generateLocalWeekMeals(opts?: WeekGenOpts | string | null): stri
     ? (opts as string | null | undefined)
     : opts.dietType;
   const allergies = typeof opts === 'object' && opts ? opts.allergies : undefined;
-  const mealRepeatPolicy = typeof opts === 'object' && opts ? opts.mealRepeatPolicy : undefined;
-  const allowRepeats = mealRepeatPolicy === 'allow';
+  const prefs: MealRepeatPrefs = typeof opts === 'object' && opts
+    ? (opts.mealRepeatPrefs
+      ?? normalizeMealRepeatPrefs(opts.mealRepeatPolicy, opts.mealRepeatSlots))
+    : normalizeMealRepeatPrefs(null, null);
 
   const used = new Set<string>();
-  const preferAnimal = !dietType || dietType === 'Omnívora' || dietType === 'Flexitariana';
+  /** slot → bucket → dish title (for patterned repeats) */
+  const bucketDish = new Map<string, string>();
+  const kind = (() => {
+    const d = (dietType || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!d || d.startsWith('omniv') || d.startsWith('flexi')) return 'animal_ok' as const;
+    return 'plant' as const;
+  })();
+  const preferAnimal = kind === 'animal_ok';
 
-  function pick(slot: string, dayIdx: number): string {
+  function candidatesFor(slot: string, dayIdx: number): string[] {
     const fromAlts = (MEAL_ALTERNATIVES[slot] || []).map(m => m.name);
     const slotIdx = WEEK_MEAL_SLOTS.indexOf(slot);
     const fromWeek = WEEK_MEALS.map(d => d[slotIdx]).filter(Boolean);
     const raw = [...fromAlts, ...fromWeek];
     const pool = raw.filter(n => mealAllowed(n, dietType, allergies));
     const effective = pool.length > 0 ? pool : raw;
-    if (effective.length === 0) return `${slot} del día`;
+    if (effective.length === 0) return [`${slot} del día`];
 
     let candidates = effective;
     if (preferAnimal && (slot === 'Almuerzo' || slot === 'Cena')) {
       const animal = effective.filter(isOmnivoreProteinMeal);
       if (animal.length > 0 && Math.random() < 0.72) candidates = animal;
     }
-
     const start = (dayIdx * 3 + slotIdx * 5 + Math.floor(Math.random() * candidates.length)) % candidates.length;
-    if (allowRepeats) {
-      return candidates[start % candidates.length];
-    }
-    for (let i = 0; i < candidates.length; i++) {
-      const name = candidates[(start + i) % candidates.length];
+    return Array.from({ length: candidates.length }, (_, i) =>
+      candidates[(start + i) % candidates.length],
+    );
+  }
+
+  function pickFresh(slot: string, dayIdx: number, preferUnused: boolean): string {
+    const ordered = candidatesFor(slot, dayIdx);
+    if (!preferUnused) return ordered[0];
+    for (const name of ordered) {
       if (!used.has(name)) {
         used.add(name);
         return name;
       }
     }
-    return candidates[start % candidates.length];
+    return ordered[0];
+  }
+
+  function pick(slot: string, dayIdx: number): string {
+    if (slotUsesRepeatPattern(slot, prefs)) {
+      if (prefs.frequency === 'flexible') {
+        return pickFresh(slot, dayIdx, false);
+      }
+      const key = `${slot}:${mealRepeatBucket(dayIdx, prefs.frequency)}`;
+      const existing = bucketDish.get(key);
+      if (existing) return existing;
+      const dish = pickFresh(slot, dayIdx, true);
+      bucketDish.set(key, dish);
+      used.add(dish);
+      return dish;
+    }
+    return pickFresh(slot, dayIdx, true);
   }
 
   return Array.from({ length: 7 }, (_, day) =>
@@ -218,7 +364,15 @@ export function mealPlanToWeekMeals(
     : opts.dietType;
   const allergies = typeof opts === 'object' && opts ? opts.allergies : undefined;
   const mealRepeatPolicy = typeof opts === 'object' && opts ? opts.mealRepeatPolicy : undefined;
-  const local = generateLocalWeekMeals({ dietType, allergies, mealRepeatPolicy });
+  const mealRepeatSlots = typeof opts === 'object' && opts ? opts.mealRepeatSlots : undefined;
+  const mealRepeatPrefs = typeof opts === 'object' && opts ? opts.mealRepeatPrefs : undefined;
+  const local = generateLocalWeekMeals({
+    dietType,
+    allergies,
+    mealRepeatPolicy,
+    mealRepeatSlots,
+    mealRepeatPrefs,
+  });
 
   if (plan.source !== 'local') {
     return local;

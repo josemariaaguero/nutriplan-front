@@ -3,9 +3,13 @@ import { chipStyle, inputStyle, color, font, gradient, radius, primaryBtnStyle, 
 import { IconLeaf } from './ui';
 import { useShellMode } from '../shellContext';
 import {
-  DEFAULT_MEAL_REPEAT_POLICY,
-  MEAL_REPEAT_OPTIONS,
-  type MealRepeatPolicy,
+  DEFAULT_MEAL_REPEAT_PREFS,
+  MEAL_REPEAT_FREQUENCY_OPTIONS,
+  MEAL_REPEAT_SLOT_OPTIONS,
+  mealRepeatNeedsSlots,
+  normalizeMealRepeatSlots,
+  type MealRepeatFrequency,
+  type MealRepeatSlot,
 } from '../mealRepeat';
 
 interface OnboardingResult {
@@ -20,7 +24,8 @@ interface OnboardingResult {
   dietType: string;
   allergies: string[];
   activityLevel: string;
-  mealRepeatPolicy: MealRepeatPolicy;
+  mealRepeatPolicy: MealRepeatFrequency;
+  mealRepeatSlots: MealRepeatSlot[];
   healthProviders: Record<string, boolean>;
 }
 
@@ -53,13 +58,28 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
   const [goals, setGoals] = useState<string[]>([]);
   const [dietType, setDietType] = useState('');
   const [allergies, setAllergies] = useState<string[]>([]);
-  const [mealRepeatPolicy, setMealRepeatPolicy] = useState<MealRepeatPolicy>(DEFAULT_MEAL_REPEAT_POLICY);
+  const [mealRepeatPolicy, setMealRepeatPolicy] = useState<MealRepeatFrequency>(
+    DEFAULT_MEAL_REPEAT_PREFS.frequency,
+  );
+  const [mealRepeatSlots, setMealRepeatSlots] = useState<MealRepeatSlot[]>([
+    ...DEFAULT_MEAL_REPEAT_PREFS.slots,
+  ]);
   const [activityLevel, setActivityLevel] = useState('');
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
 
   function toggleItem(list: string[], setList: (v: string[]) => void, item: string) {
     setList(list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
+  }
+
+  function toggleRepeatSlot(slot: MealRepeatSlot) {
+    setMealRepeatSlots(prev => {
+      if (prev.includes(slot)) {
+        const next = prev.filter(s => s !== slot);
+        return next.length > 0 ? next : prev;
+      }
+      return [...prev, slot];
+    });
   }
 
   function canAdvance() {
@@ -149,6 +169,9 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
         allergies,
         activityLevel: activityLevel || 'Moderadamente activo',
         mealRepeatPolicy,
+        mealRepeatSlots: mealRepeatNeedsSlots(mealRepeatPolicy)
+          ? normalizeMealRepeatSlots(mealRepeatSlots)
+          : [...DEFAULT_MEAL_REPEAT_PREFS.slots],
         healthProviders: {},
       });
     } finally {
@@ -296,10 +319,13 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
           </div>
 
           <div style={{ fontSize: 13, fontWeight: 700, color: '#9a9087', textTransform: 'uppercase', letterSpacing: 0.4, margin: '24px 0 10px' }}>
-            ¿Repetir comidas en la semana?
+            ¿Con qué frecuencia repetir un plato?
+          </div>
+          <div style={{ fontSize: 12.5, color: '#9a9087', fontWeight: 500, margin: '-2px 0 10px', lineHeight: 1.4 }}>
+            Útil si cocinas de una vez para varios días.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {MEAL_REPEAT_OPTIONS.map(opt => {
+            {MEAL_REPEAT_FREQUENCY_OPTIONS.map(opt => {
               const sel = mealRepeatPolicy === opt.id;
               return (
                 <div
@@ -321,6 +347,25 @@ export default function OnboardingScreen({ name, email, onComplete, error: exter
               );
             })}
           </div>
+
+          {mealRepeatNeedsSlots(mealRepeatPolicy) && (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#9a9087', textTransform: 'uppercase', letterSpacing: 0.4, margin: '24px 0 10px' }}>
+                ¿En qué comidas?
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {MEAL_REPEAT_SLOT_OPTIONS.map(opt => (
+                  <span
+                    key={opt.id}
+                    onClick={() => toggleRepeatSlot(opt.id)}
+                    style={chipStyle(mealRepeatSlots.includes(opt.id))}
+                  >
+                    {mealRepeatSlots.includes(opt.id) && '✓ '}{opt.label}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 

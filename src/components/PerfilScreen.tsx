@@ -7,11 +7,15 @@ import {
   type NotificationPrefs,
 } from '../notificationPrefs';
 import {
-  DEFAULT_MEAL_REPEAT_POLICY,
-  MEAL_REPEAT_OPTIONS,
+  DEFAULT_MEAL_REPEAT_PREFS,
+  MEAL_REPEAT_FREQUENCY_OPTIONS,
+  MEAL_REPEAT_SLOT_OPTIONS,
   mealRepeatLabel,
-  normalizeMealRepeatPolicy,
-  type MealRepeatPolicy,
+  mealRepeatNeedsSlots,
+  normalizeMealRepeatPrefs,
+  normalizeMealRepeatSlots,
+  type MealRepeatFrequency,
+  type MealRepeatSlot,
 } from '../mealRepeat';
 import PhoneSheet from './PhoneSheet';
 import { color, font, goalColors, radius, cardStyle, primaryBtnStyle, secondaryBtnStyle, gradient, shadow, chipStyle, inputStyle } from '../theme';
@@ -26,10 +30,14 @@ const ALLERGIES_OPTIONS = ['Gluten', 'Lactosa', 'Frutos secos', 'Huevo', 'Soja',
 const DIET_OPTIONS = ['Omnívora', 'Vegetariana', 'Vegana', 'Flexitariana', 'Sin gluten', 'Sin lácteos'];
 const ACTIVITY_OPTIONS = ['Sedentario', 'Ligeramente activo', 'Moderadamente activo', 'Muy activo'];
 
-type EditMode = 'none' | 'personal' | 'allergies' | 'notifications';
+type EditMode = 'none' | 'personal' | 'allergies' | 'mealRepeat' | 'notifications';
 
 function sortedKey(list: string[]): string {
   return [...list].map(s => s.toLowerCase()).sort().join('|');
+}
+
+function sortedSlotsKey(list: string[] | undefined): string {
+  return [...(list || [])].map(s => s.toLowerCase()).sort().join('|');
 }
 
 /** True when saved fields affect meal plan generation. */
@@ -38,7 +46,9 @@ function planConfigChanged(prev: User, next: User): boolean {
     prev.weight !== next.weight
     || prev.dietType !== next.dietType
     || prev.activityLevel !== next.activityLevel
-    || normalizeMealRepeatPolicy(prev.mealRepeatPolicy) !== normalizeMealRepeatPolicy(next.mealRepeatPolicy)
+    || normalizeMealRepeatPrefs(prev.mealRepeatPolicy, prev.mealRepeatSlots).frequency
+      !== normalizeMealRepeatPrefs(next.mealRepeatPolicy, next.mealRepeatSlots).frequency
+    || sortedSlotsKey(prev.mealRepeatSlots) !== sortedSlotsKey(next.mealRepeatSlots)
     || sortedKey(prev.goals) !== sortedKey(next.goals)
     || sortedKey(prev.allergies) !== sortedKey(next.allergies)
   );
@@ -157,9 +167,6 @@ function EditPersonalPanel({ user, onSave, onClose }: { user: User; onSave: (u: 
   const [weight, setWeight] = useState(user.weight ? String(user.weight) : '');
   const [dietType, setDietType] = useState(user.dietType);
   const [activityLevel, setActivityLevel] = useState(user.activityLevel);
-  const [mealRepeatPolicy, setMealRepeatPolicy] = useState<MealRepeatPolicy>(
-    normalizeMealRepeatPolicy(user.mealRepeatPolicy ?? DEFAULT_MEAL_REPEAT_POLICY),
-  );
   const [goals, setGoals] = useState<string[]>(user.goals);
 
   function toggleGoal(g: string) {
@@ -177,7 +184,6 @@ function EditPersonalPanel({ user, onSave, onClose }: { user: User; onSave: (u: 
       targetWeight: w,
       dietType,
       activityLevel,
-      mealRepeatPolicy,
       goals,
     });
   }
@@ -235,35 +241,6 @@ function EditPersonalPanel({ user, onSave, onClose }: { user: User; onSave: (u: 
         </div>
 
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#9a9087', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 8 }}>
-            ¿Repetir comidas en la semana?
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {MEAL_REPEAT_OPTIONS.map(opt => {
-              const sel = mealRepeatPolicy === opt.id;
-              return (
-                <div
-                  key={opt.id}
-                  onClick={() => setMealRepeatPolicy(opt.id)}
-                  style={{
-                    padding: '11px 14px', borderRadius: 14, cursor: 'pointer',
-                    border: sel ? '2px solid #ff6a3d' : '2px solid #f0e8df',
-                    background: sel ? '#fff4f0' : '#fff',
-                  }}
-                >
-                  <div style={{ fontSize: 14, fontWeight: 600, color: sel ? '#e0512c' : '#2a2520' }}>
-                    {sel && '✓ '}{opt.label}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#9a9087', fontWeight: 500, marginTop: 2, lineHeight: 1.35 }}>
-                    {opt.desc}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#9a9087', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 8 }}>Nivel de actividad</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             {ACTIVITY_OPTIONS.map(a => (
@@ -290,6 +267,104 @@ function EditPersonalPanel({ user, onSave, onClose }: { user: User; onSave: (u: 
         style={{ ...primaryBtnStyle(), marginTop: 20, width: '100%' }}
       >
         Guardar cambios
+      </button>
+    </PhoneSheet>
+  );
+}
+
+function EditMealRepeatPanel({ user, onSave, onClose }: { user: User; onSave: (u: User) => void; onClose: () => void }) {
+  const initial = normalizeMealRepeatPrefs(user.mealRepeatPolicy, user.mealRepeatSlots);
+  const [frequency, setFrequency] = useState<MealRepeatFrequency>(initial.frequency);
+  const [slots, setSlots] = useState<MealRepeatSlot[]>(initial.slots);
+
+  function toggleSlot(slot: MealRepeatSlot) {
+    setSlots(prev => {
+      if (prev.includes(slot)) {
+        const next = prev.filter(s => s !== slot);
+        return next.length > 0 ? next : prev;
+      }
+      return [...prev, slot];
+    });
+  }
+
+  function handleSave() {
+    onSave({
+      ...user,
+      mealRepeatPolicy: frequency,
+      mealRepeatSlots: mealRepeatNeedsSlots(frequency)
+        ? normalizeMealRepeatSlots(slots)
+        : [...DEFAULT_MEAL_REPEAT_PREFS.slots],
+    });
+  }
+
+  const showSlots = mealRepeatNeedsSlots(frequency);
+
+  return (
+    <PhoneSheet onClose={onClose} maxHeight="85%">
+      <SheetHeader title="Repetición de comidas" onClose={onClose} />
+      <div style={{ fontSize: 13.5, color: '#9a9087', fontWeight: 500, marginBottom: 16, lineHeight: 1.45 }}>
+        Elige con qué frecuencia puede repetirse un plato y en qué momentos del día.
+      </div>
+
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#9a9087', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 8 }}>
+        Frecuencia
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: showSlots ? 18 : 0 }}>
+        {MEAL_REPEAT_FREQUENCY_OPTIONS.map(opt => {
+          const sel = frequency === opt.id;
+          return (
+            <div
+              key={opt.id}
+              onClick={() => setFrequency(opt.id)}
+              role="button"
+              style={{
+                padding: '14px 16px', borderRadius: 16, cursor: 'pointer',
+                border: sel ? '2px solid #ff6a3d' : '2px solid #f0e8df',
+                background: sel ? '#fff4f0' : '#fff',
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: sel ? '#e0512c' : '#2a2520' }}>
+                {sel && '✓ '}{opt.label}
+              </div>
+              <div style={{ fontSize: 12.5, color: '#9a9087', fontWeight: 500, marginTop: 4, lineHeight: 1.4 }}>
+                {opt.desc}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {showSlots && (
+        <>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#9a9087', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 8 }}>
+            ¿En qué comidas?
+          </div>
+          <div style={{ fontSize: 12.5, color: '#9a9087', fontWeight: 500, marginBottom: 10, lineHeight: 1.4 }}>
+            El patrón se aplica solo a las que elijas. El resto mantiene variedad.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {MEAL_REPEAT_SLOT_OPTIONS.map(opt => {
+              const sel = slots.includes(opt.id);
+              return (
+                <span
+                  key={opt.id}
+                  onClick={() => toggleSlot(opt.id)}
+                  style={{ ...chipStyle(sel), padding: '10px 14px', fontSize: 13.5 }}
+                >
+                  {sel && '✓ '}{opt.label}
+                </span>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <button
+        type="button"
+        onClick={handleSave}
+        style={{ ...primaryBtnStyle(), marginTop: 20, width: '100%' }}
+      >
+        Guardar
       </button>
     </PhoneSheet>
   );
@@ -529,18 +604,31 @@ export default function PerfilScreen({ onShowLegal }: { onShowLegal?: () => void
       <SectionTitle style={{ fontSize: 16 }}>Mis datos</SectionTitle>
       <div data-tutorial="perfil-datos" style={{ ...cardStyle, overflow: 'hidden' }}>
         {[
-          { label: 'Altura', value: user.height ? `${user.height} cm` : '—' },
-          { label: 'Edad', value: user.age ? `${user.age} años` : '—' },
-          { label: 'Nivel de actividad', value: user.activityLevel || '—' },
-          { label: 'Tipo de dieta', value: user.dietType || '—' },
-          { label: 'Repetición de comidas', value: mealRepeatLabel(user.mealRepeatPolicy) },
+          { label: 'Altura', value: user.height ? `${user.height} cm` : '—', action: () => setEditMode('personal') },
+          { label: 'Edad', value: user.age ? `${user.age} años` : '—', action: () => setEditMode('personal') },
+          { label: 'Nivel de actividad', value: user.activityLevel || '—', action: () => setEditMode('personal') },
+          { label: 'Tipo de dieta', value: user.dietType || '—', action: () => setEditMode('personal') },
+          {
+            label: 'Repetición de comidas',
+            value: mealRepeatLabel(user.mealRepeatPolicy, user.mealRepeatSlots),
+            action: () => setEditMode('mealRepeat'),
+          },
         ].map((item, i, arr) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', padding: '14px 16px',
-            borderBottom: i < arr.length - 1 ? `1px solid ${color.divider}` : undefined,
-          }}>
+          <div
+            key={i}
+            onClick={item.action}
+            role="button"
+            style={{
+              display: 'flex', alignItems: 'center', padding: '14px 16px',
+              borderBottom: i < arr.length - 1 ? `1px solid ${color.divider}` : undefined,
+              cursor: 'pointer',
+            }}
+          >
             <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600 }}>{item.label}</span>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: color.textMuted, textAlign: 'right', maxWidth: 160 }}>{item.value}</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: color.textMuted, textAlign: 'right', maxWidth: 160, marginRight: 8 }}>{item.value}</span>
+            <svg width="7" height="12" viewBox="0 0 8 14" aria-hidden>
+              <path d="M1 1l6 6-6 6" stroke={color.chevron} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
         ))}
       </div>
@@ -566,6 +654,7 @@ export default function PerfilScreen({ onShowLegal }: { onShowLegal?: () => void
       <div data-tutorial="perfil-preferencias" style={{ ...cardStyle, overflow: 'hidden' }}>
         {[
           { label: 'Datos personales', action: () => setEditMode('personal') },
+          { label: 'Repetición de comidas', action: () => setEditMode('mealRepeat') },
           { label: 'Alergias e intolerancias', action: () => setEditMode('allergies') },
           { label: 'Mis recetas', action: () => go('misRecetas') },
           { label: 'Asistente', action: openAssistantEntry },
@@ -780,6 +869,13 @@ export default function PerfilScreen({ onShowLegal }: { onShowLegal?: () => void
       {/* Edit sheets — portaled into phone frame */}
       {editMode === 'personal' && (
         <EditPersonalPanel
+          user={user}
+          onSave={handlePlanRelatedSave}
+          onClose={() => setEditMode('none')}
+        />
+      )}
+      {editMode === 'mealRepeat' && (
+        <EditMealRepeatPanel
           user={user}
           onSave={handlePlanRelatedSave}
           onClose={() => setEditMode('none')}

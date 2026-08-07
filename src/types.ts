@@ -85,9 +85,9 @@ export interface SwapAlternative {
   f: number;
 }
 
-import type { MealRepeatPolicy } from './mealRepeat';
+import type { MealRepeatFrequency, MealRepeatPolicy, MealRepeatSlot } from './mealRepeat';
 
-export type { MealRepeatPolicy };
+export type { MealRepeatFrequency, MealRepeatPolicy, MealRepeatSlot };
 
 export interface User {
   name: string;
@@ -101,8 +101,10 @@ export interface User {
   dietType: string;
   allergies: string[];
   activityLevel: string;
-  /** Weekly plan variety: avoid repeats (default) or allow them. */
-  mealRepeatPolicy?: MealRepeatPolicy;
+  /** Weekly plan variety / batch-cooking pattern. */
+  mealRepeatPolicy?: MealRepeatFrequency;
+  /** Meal slots where the repeat pattern applies. */
+  mealRepeatSlots?: MealRepeatSlot[];
   onboardingComplete?: boolean;
   isSuperadmin?: boolean;
 }

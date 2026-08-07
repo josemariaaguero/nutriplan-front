@@ -10,6 +10,7 @@ import { color, font, cardStyle, radius } from '../theme';
 import { EmptyState, Notice, ScreenHeader, ScreenPage, SectionTitle } from './ui';
 import type { Meal } from '../types';
 import { mealFitsAllergies, mealFitsDiet } from '../weekPlan';
+import { normalizeMealRepeatPrefs, slotUsesRepeatPattern } from '../mealRepeat';
 
 function MealPreview({
   meal,
@@ -238,12 +239,14 @@ export default function SwapMealScreen() {
   const slotName = WEEK_MEAL_SLOTS[slotIdx];
   const dietType = user?.dietType;
   const allergies = user?.allergies;
-  const allowRepeats = user?.mealRepeatPolicy === 'allow';
+  const repeatPrefs = normalizeMealRepeatPrefs(user?.mealRepeatPolicy, user?.mealRepeatSlots);
+  const allowRepeats = slotUsesRepeatPattern(slotName, repeatPrefs);
   const usedTitles = new Set((weekMeals || []).flat().filter(Boolean));
   const currentName = source === 'hoy' ? currentMeals[slotIdx]?.name : null;
 
   const alternatives = (MEAL_ALTERNATIVES[slotName] || [])
-    .filter(m => mealFitsDiet(m.name, dietType) && mealFitsAllergies(m.name, allergies))
+    .filter(m => mealFitsDiet(m.name, dietType, m.ingredients)
+      && mealFitsAllergies(m.name, allergies, m.ingredients))
     .sort((a, b) => {
       if (allowRepeats) return 0;
       const aUsed = usedTitles.has(a.name) && a.name !== currentName ? 1 : 0;
@@ -252,11 +255,14 @@ export default function SwapMealScreen() {
     })
     .map(withMealImage);
   const currentMeal = source === 'hoy' ? currentMeals[slotIdx] : null;
-  const slotRecipes = [...myRecipes].sort((a, b) => {
-    const aMatch = a.preferred_slot === slotName ? 0 : 1;
-    const bMatch = b.preferred_slot === slotName ? 0 : 1;
-    return aMatch - bMatch;
-  });
+  const slotRecipes = [...myRecipes]
+    .filter(r => mealFitsDiet(r.name, dietType, r.ingredients)
+      && mealFitsAllergies(r.name, allergies, r.ingredients))
+    .sort((a, b) => {
+      const aMatch = a.preferred_slot === slotName ? 0 : 1;
+      const bMatch = b.preferred_slot === slotName ? 0 : 1;
+      return aMatch - bMatch;
+    });
 
   function recipeToMeal(r: UserRecipeApi): Meal {
     return {
@@ -410,9 +416,18 @@ export default function SwapMealScreen() {
       <div data-tutorial="swap-meal-alternativas">
       <SectionTitle>Alternativas</SectionTitle>
       <div style={{ fontSize: 12.5, color: color.textMuted, fontWeight: 500, margin: '-4px 2px 14px' }}>
-        Toca para ver detalle.
+        {dietType
+          ? `Según tu dieta (${dietType}). Toca para ver detalle.`
+          : 'Toca para ver detalle.'}
       </div>
 
+      {alternatives.length === 0 ? (
+        <EmptyState
+          title="Sin alternativas"
+          body="No hay platos del catálogo compatibles con tu dieta para este momento."
+          style={{ marginBottom: 8 }}
+        />
+      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {alternatives.map((alt, i) => {
           const kcalDiff = currentMeal ? n(alt.kcal - currentMeal.kcal) : 0;
@@ -489,6 +504,7 @@ export default function SwapMealScreen() {
           );
         })}
       </div>
+      )}
       </div>
     </ScreenPage>
   );
